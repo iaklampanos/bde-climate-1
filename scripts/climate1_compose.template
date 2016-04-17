@@ -1,0 +1,18 @@
+version: '2'
+services:
+  climate1:
+    build: __BUILD_DIR_
+    ports:
+    - "80:80"
+    volumes:
+    - __HOST_CASSANDRA_DATA_:__CASSANDRA_DATA_
+    - logvolume01:/var/log
+    links:
+    - bde2020/spark-base
+    - bde2020/hadoop-base
+    - cassandra
+    - bde2020/docker-sextant
+  redis:
+    image: redis
+volumes:
+  logvolume01: {}
