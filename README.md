@@ -1,3 +1,3 @@
 # bde-climate-1
 
-Prototype for the first BDE climate-change pilot. [expand]
+Prototype for the first BDE climate-change pilot.
