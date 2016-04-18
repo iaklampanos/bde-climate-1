@@ -1,11 +1,11 @@
 version: '2'
 services:
   climate1:
-    build: __BUILD_DIR_
+    build: /Users/iraklis/Climate1-build/
     ports:
     - "80:80"
     volumes:
-    - __HOST_CASSANDRA_DATA_:__CASSANDRA_DATA_
+    - /Users/iraklis/Climate1_Vols/cassandra_data:/var/lib/cassandra
     - logvolume01:/var/log
     links:
     - spark

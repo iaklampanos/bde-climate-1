@@ -7,3 +7,11 @@ help::
 	@echo "Usage help goes here"
 
 include configuration.mk
+
+QUERY=
+query::
+	# search by (sparql?) string
+
+SPARQL_FILE=myfile
+query_sparql::
+	# search by sparql file
