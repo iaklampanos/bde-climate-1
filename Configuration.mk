@@ -4,16 +4,16 @@ SHELL=/bin/bash
 DOCKERCOMPOSE=/usr/local/bin/docker-compose
 DOCKER=/usr/local/bin/docker
 DOCKERMACHINE=/usr/local/bin/docker-machine
-DOCKERFILE=dockerfiles/climate1/Dockerfile
-DOCKERFILE_TEMPLATE=dockerfiles/climate1/Dockerfile.template
+DOCKERFILE_TEMPLATE=templates/Dockerfile.template
 TEMPL_DOCKERFILE_WORKDIR=__WORKDIR_
 
-DOCKERCOMPOSE_TEMPLATE=scripts/climate1_compose.template
+DOCKERCOMPOSE_TEMPLATE=templates/climate1_compose.template
 DOCKERCOMPOSE_BUILD_DIR=/Users/iraklis/Climate1-build/
+DOCKERFILE=$(DOCKERCOMPOSE_BUILD_DIR)Dockerfile
 TEMPL_CASS_DATA_HOST=__HOST_CASSANDRA_DATA_
 TEMPL_CASS_DATA=__CASSANDRA_DATA_
 TEMPL_BUILD_DIR=__BUILD_DIR_
-DOCKERCOMPOSE_YML=scripts/climate1_compose.yml
+DOCKERCOMPOSE_YML=climate1_compose.yml
 CASSANDRA_DATA_DIR_HOST=/Users/iraklis/Climate1_Vols/cassandra_data
 CASSANDRA_DATA_DIR=/var/lib/cassandra
 
@@ -32,9 +32,15 @@ init:: $(DOCKERCOMPOSE_YML) $(DOCKERFILE)
 login::
 	$(DOCKER) login
 
-### docker composition for development, testing and demonstration
-compose:: init ps
-	@echo
+compose:: init
+	### Executing docker-compose:
+	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d
+	### Let's see what's running:
+	$(DOCKER) ps
+
+stop-all::
+	### Stop all containers:
+	$(DOCKER) stop $$($(DOCKER) ps -a -q)
 
 ps::
 	$(DOCKER) ps
