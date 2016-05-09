@@ -3,7 +3,7 @@ services:
   climate1:
     build: __BUILD_DIR_
     ports:
-    - "80:80"
+    - "2222:22"
     volumes:
     - __HOST_CASSANDRA_DATA_:__CASSANDRA_DATA_
     - logvolume01:/var/log
@@ -12,13 +12,24 @@ services:
     - hadoop
     - cassandra
     - semagrow
+    - sextant
   spark:
-    image: bde2020/spark-base
+    image: sequenceiq/spark:1.6.0
+    ports:
+    - "8088:8088"
+    - "8042:8042"
+    - "4040:4040"
   hadoop:
     image: bde2020/hadoop-base
   cassandra:
     image: cassandra
   semagrow:
     image: semagrow/semagrow
+    ports:
+    - "8090:8080"
+  sextant:
+    image: bde2020/docker-sextant
+    ports:
+    - "8100:8080"
 volumes:
   logvolume01: {}

@@ -38,14 +38,27 @@ compose:: init
 	### Let's see what's running:
 	$(DOCKER) ps
 
-stop-all::
-	### Stop all containers:
-	$(DOCKER) stop $$($(DOCKER) ps -a -q)
+# stop-all::
+# 	### Stop all containers:
+# 	$(DOCKER) stop $$($(DOCKER) ps -a -q)
+
+kill::
+	### docker-compose kill
+	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) kill
 
 ps::
 	$(DOCKER) ps
 
+clean:: conf-clean
 conf-clean::
 	### Cleaning the configuration
 	rm -f $(DOCKERCOMPOSE_YML)
 	rm -f $(DOCKERFILE)
+
+CONTAINER=bdeclimate1_climate1_1
+ssh:: ssh-container
+ssh-container::
+	$(DOCKER) exec -it $(CONTAINER) /bin/bash
+
+logs::
+	$(DOCKER) logs $(CONTAINER)
