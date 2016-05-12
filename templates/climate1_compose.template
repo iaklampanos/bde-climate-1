@@ -28,7 +28,7 @@ services:
     ports:
     - "8090:8080"
   sextant:
-    image: bde2020/docker-sextant
+    image: bde2020/sextant
     ports:
     - "8100:8080"
 volumes:
