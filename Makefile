@@ -6,7 +6,7 @@ SED=/usr/bin/sed
 help::
 	@echo "Usage help goes here"
 
-include configuration.mk
+include Configuration.mk
 
 QUERY=
 query::

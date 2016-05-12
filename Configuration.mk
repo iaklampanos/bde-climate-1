@@ -38,9 +38,10 @@ compose:: init
 	### Let's see what's running:
 	$(DOCKER) ps
 
-# stop-all::
-# 	### Stop all containers:
-# 	$(DOCKER) stop $$($(DOCKER) ps -a -q)
+stop:: stop-all
+stop-all::
+	### Stop all containers individually:
+	$(DOCKER) stop $$($(DOCKER) ps -a -q)
 
 kill::
 	### docker-compose kill
