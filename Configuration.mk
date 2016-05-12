@@ -8,13 +8,13 @@ DOCKERFILE_TEMPLATE=templates/Dockerfile.template
 TEMPL_DOCKERFILE_WORKDIR=__WORKDIR_
 
 DOCKERCOMPOSE_TEMPLATE=templates/climate1_compose.template
-DOCKERCOMPOSE_BUILD_DIR=/Users/iraklis/Climate1-build/
+DOCKERCOMPOSE_BUILD_DIR=/home/stathis/Climate1-build/
 DOCKERFILE=$(DOCKERCOMPOSE_BUILD_DIR)Dockerfile
 TEMPL_CASS_DATA_HOST=__HOST_CASSANDRA_DATA_
 TEMPL_CASS_DATA=__CASSANDRA_DATA_
 TEMPL_BUILD_DIR=__BUILD_DIR_
 DOCKERCOMPOSE_YML=climate1_compose.yml
-CASSANDRA_DATA_DIR_HOST=/Users/iraklis/Climate1_Vols/cassandra_data
+CASSANDRA_DATA_DIR_HOST=/home/stathis/Climate1_Vols/cassandra_data
 CASSANDRA_DATA_DIR=/var/lib/cassandra
 
 $(DOCKERCOMPOSE_YML):

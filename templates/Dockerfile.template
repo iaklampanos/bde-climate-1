@@ -1,2 +1,2 @@
-FROM bde2020/docker-sextant
+FROM bde2020/sextant
 WORKDIR __WORKDIR_

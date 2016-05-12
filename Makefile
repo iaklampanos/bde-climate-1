@@ -1,12 +1,16 @@
 # Main makefile for the first BDE climate pilot prototype
 
+
 SHELL=/bin/bash
-SED=/usr/bin/sed
+SED := $(shell which sed)
+
+
 
 help::
 	@echo "Usage help goes here"
+	@echo $(SED)
 
-include configuration.mk
+include Configuration.mk
 
 QUERY=
 query::
