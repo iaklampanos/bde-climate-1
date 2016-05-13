@@ -8,17 +8,18 @@ services:
     - __HOST_CASSANDRA_DATA_:__CASSANDRA_DATA_
     - logvolume01:/var/log
     links:
-    - spark
+    - master
     - hadoop
     - cassandra
     - semagrow
     - sextant
-  spark:
-    image: sequenceiq/spark:1.6.0
-    ports:
-    - "8088:8088"
-    - "8042:8042"
-    - "4040:4040"
+  master:
+    image: bde2020/spark-master:1.5.1-hadoop2.6
+    hostname: spark-master
+  worker:
+    image: bde2020/spark-worker:1.5.1-hadoop2.6
+    links:
+    - "master:spark-master"
   hadoop:
     image: bde2020/hadoop-base
   cassandra:

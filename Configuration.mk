@@ -1,9 +1,9 @@
 # Configuration (docker) targets and scripts
 
 SHELL=/bin/bash
-DOCKERCOMPOSE=/usr/local/bin/docker-compose
-DOCKER=/usr/local/bin/docker
-DOCKERMACHINE=/usr/local/bin/docker-machine
+DOCKERCOMPOSE=$(shell which docker-compose)
+DOCKER=$(shell which docker)
+DOCKERMACHINE=$(shell which docker-machine)
 DOCKERFILE_TEMPLATE=templates/Dockerfile.template
 TEMPL_DOCKERFILE_WORKDIR=__WORKDIR_
 
