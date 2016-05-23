@@ -24,8 +24,11 @@ services:
     image: bde2020/hadoop-base
   cassandra:
     image: cassandra
+    ports:
+    - "8110:9042"
+    - "8120:9160"
   semagrow:
-    image: semagrow/semagrow
+    image: semagrow/semagrow-cassandra
     ports:
     - "8090:8080"
   sextant:

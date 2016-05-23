@@ -2,11 +2,15 @@
 
 SHELL=/bin/bash
 SED=$(shell which sed)
+GIT=$(shell which git)
+MVN=$(shell which mvn)
+JAVA=$(shell which java)
 
 help::
 	@echo "Usage help goes here"
 
 include Configuration.mk
+include Data.mk
 
 QUERY=
 query::
