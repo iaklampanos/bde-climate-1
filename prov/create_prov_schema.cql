@@ -10,6 +10,7 @@ CREATE TYPE agentproc (
 	st timestamp, -- start of processing
 	et timestamp, -- end of processing
 	params MAP<VARCHAR, VARCHAR>, -- execution params and values
+	misc TEXT,
 	issuccessful boolean
 );
 
