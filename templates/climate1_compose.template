@@ -27,6 +27,8 @@ services:
     ports:
     - "8110:9042"
     - "8120:9160"
+  hive:
+   image: bde2020/hive
   semagrow:
     image: semagrow/semagrow-cassandra
     ports:
