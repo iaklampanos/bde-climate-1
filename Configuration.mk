@@ -33,7 +33,19 @@ init:: $(DOCKERCOMPOSE_YML) $(DOCKERFILE)
 login::
 	$(DOCKER) login
 
-compose:: init
+init-hadoop-hive::
+	### Create hadoop network,clone repos for hadoop, hive
+	$(DOCKER) network rm hadoop
+	$(DOCKER) network create hadoop
+	#$(GIT) clone https://github.com/big-data-europe/docker-hadoop $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop
+	#$(GIT) clone https://github.com/big-data-europe/docker-hive $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive
+
+compose-hadoop-hive:: init-hadoop-hive
+	###Executing hadoop, hive compose
+	cd $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop && $(DOCKERCOMPOSE) up -d
+	cd $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive && $(DOCKERCOMPOSE) up -d
+
+compose:: init compose-hadoop-hive
 	### Executing docker-compose:
 	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d
 	### Let's see what's running:
@@ -48,6 +60,9 @@ kill::
 	### docker-compose kill
 	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) kill
 
+rm-all::
+	###Delete all containers###
+	$(DOCKER) rm -f $$($(DOCKER) ps -a -q)
 ps::
 	$(DOCKER) ps
 

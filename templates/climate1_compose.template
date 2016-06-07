@@ -1,15 +1,14 @@
 version: '2'
 services:
   climate1:
-    build: __BUILD_DIR_
+    build: /home/stathis/Develop/
     ports:
     - "2222:22"
     volumes:
-    - __HOST_CASSANDRA_DATA_:__CASSANDRA_DATA_
+    - /home/stathis/Downloads/:/var/lib/cassandra
     - logvolume01:/var/log
     links:
     - master
-    - hadoop
     - cassandra
     - semagrow
     - sextant
@@ -20,15 +19,11 @@ services:
     image: bde2020/spark-worker:1.5.1-hadoop2.6
     links:
     - "master:spark-master"
-  hadoop:
-    image: bde2020/hadoop-base
   cassandra:
     image: cassandra
     ports:
     - "8110:9042"
     - "8120:9160"
-  hive:
-   image: bde2020/hive
   semagrow:
     image: semagrow/semagrow-cassandra
     ports:
