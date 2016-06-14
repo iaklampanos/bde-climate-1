@@ -51,6 +51,15 @@ compose:: init compose-hadoop-hive
 	### Let's see what's running:
 	$(DOCKER) ps
 
+configure-start-semagrow::
+	#configure semagrow to talk to cassandra
+	VIP=`$(DOCKER) network inspect hadoop | grep -A3 bdeclimate1_cassandra_1 | tail -n1 | sed 's/[",:,IPv4Address]//g'|head -c-4`;\
+	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper; \
+	$(GIT) clone https://github.com/semagrow/docker-sevod-scraper $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper;\
+	cd $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper && $(DOCKER) build -t sevod-scraper .;\
+	$(DOCKER) run --rm --net=hadoop -it -v $(NETCDF_DATA_DIR):/output sevod-scraper cassandra $$VIP 9042 netcdf_headers http://cassandra.semagrow.eu /output/metadata.ttl &&\
+	$(DOCKER) run -d -p 8090:8080 -v $(NETCDF_DATA_DIR):/etc/default/semagrow semagrow/semagrow-cassandra;
+
 stop:: stop-all
 stop-all::
 	### Stop all containers individually:

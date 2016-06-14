@@ -1,4 +1,5 @@
 version: '2'
+
 services:
   climate1:
     build: /home/stathis/Develop/
@@ -10,7 +11,6 @@ services:
     links:
     - master
     - cassandra
-    - semagrow
     - sextant
   master:
     image: bde2020/spark-master:1.5.1-hadoop2.6
@@ -24,13 +24,15 @@ services:
     ports:
     - "8110:9042"
     - "8120:9160"
-  semagrow:
-    image: semagrow/semagrow-cassandra
-    ports:
-    - "8090:8080"
   sextant:
     image: bde2020/sextant
     ports:
     - "8100:8080"
 volumes:
   logvolume01: {}
+
+networks:
+  default:
+    external:
+      name: hadoop
+
