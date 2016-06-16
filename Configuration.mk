@@ -1,4 +1,4 @@
-# Configuration (docker) targets and scripts
+#Configuration (docker) targets and scripts
 
 SHELL=/bin/bash
 DOCKERCOMPOSE=$(shell which docker-compose)
@@ -16,6 +16,8 @@ TEMPL_BUILD_DIR=__BUILD_DIR_
 DOCKERCOMPOSE_YML=climate1_compose.yml
 CASSANDRA_DATA_DIR_HOST=$(shell echo $$CLIMATE1_CASSANDRA_DATA_DIR)
 CASSANDRA_DATA_DIR=/var/lib/cassandra
+USERNAM=bde2020
+MODELSRV=tornado.ipta.demokritos.gr
 
 $(DOCKERCOMPOSE_YML):
 	### Creating the docker-compose yml
@@ -35,7 +37,6 @@ login::
 
 init-hadoop-hive::
 	### Create hadoop network,clone repos for hadoop, hive
-	$(DOCKER) network rm hadoop
 	$(DOCKER) network create hadoop
 	#$(GIT) clone https://github.com/big-data-europe/docker-hadoop $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop
 	#$(GIT) clone https://github.com/big-data-europe/docker-hive $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive
@@ -47,18 +48,23 @@ compose-hadoop-hive:: init-hadoop-hive
 
 compose:: init compose-hadoop-hive
 	### Executing docker-compose:
-	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d
-	### Let's see what's running:
-	$(DOCKER) ps
+	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d && make configure-start-semagrow;
 
-configure-start-semagrow::
+create-cassandra-schema::
+	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
+	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-cassandra.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
+	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/pom.xml clean package;\
+	sleep 5; \
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110;
+
+configure-start-semagrow:: create-cassandra-schema
 	#configure semagrow to talk to cassandra
 	VIP=`$(DOCKER) network inspect hadoop | grep -A3 bdeclimate1_cassandra_1 | tail -n1 | sed 's/[",:,IPv4Address]//g'|head -c-4`;\
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper; \
 	$(GIT) clone https://github.com/semagrow/docker-sevod-scraper $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper;\
 	cd $(NETCDF_CASSANDRA_BUILD_DIR)/docker-sevod-scraper && $(DOCKER) build -t sevod-scraper .;\
 	$(DOCKER) run --rm --net=hadoop -it -v $(NETCDF_DATA_DIR):/output sevod-scraper cassandra $$VIP 9042 netcdf_headers http://cassandra.semagrow.eu /output/metadata.ttl &&\
-	$(DOCKER) run -d -p 8090:8080 -v $(NETCDF_DATA_DIR):/etc/default/semagrow semagrow/semagrow-cassandra;
+	$(DOCKER) run -d --net=hadoop -p 8090:8080 -v $(NETCDF_DATA_DIR):/etc/default/semagrow semagrow/semagrow-cassandra;
 
 stop:: stop-all
 stop-all::
@@ -80,6 +86,15 @@ conf-clean::
 	### Cleaning the configuration
 	rm -f $(DOCKERCOMPOSE_YML)
 	rm -f $(DOCKERFILE)
+
+create-structure::
+	### Copy Dir and structure
+	scp bde2020user1.tar.gz $(USERNAM)@$(MODELSRV):~/; \
+	CURRUUID=`uuidgen`; \
+	ssh $(USERNAM)@$(MODELSRV) " tar zxf bde2020user1.tar.gz && mv bde2020user1 `echo $$USER`_$$CURRUUID"; \
+	`echo $$USER`_$$CURRUUID > curr.UUID; 
+
+
 
 CONTAINER=bdeclimate1_climate1_1
 ssh:: ssh-container
