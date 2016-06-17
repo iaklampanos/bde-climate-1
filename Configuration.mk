@@ -37,7 +37,7 @@ login::
 
 init-hadoop-hive::
 	### Create hadoop network,clone repos for hadoop, hive
-	$(DOCKER) network create hadoop
+	$(DOCKER) network create hadoop 
 	#$(GIT) clone https://github.com/big-data-europe/docker-hadoop $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop
 	#$(GIT) clone https://github.com/big-data-europe/docker-hive $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive
 
@@ -78,6 +78,7 @@ kill::
 rm-all::
 	###Delete all containers###
 	$(DOCKER) rm -f $$($(DOCKER) ps -a -q)
+	$(DOCKER) network rm hadoop
 ps::
 	$(DOCKER) ps
 

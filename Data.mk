@@ -12,6 +12,7 @@ NETCDFS=$(shell ls $(NETCDF_DATA_DIR)/*.nc)
 NETCDFCSVS=$(shell ls $(NETCDF_DATA_DIR)/*.gz)
 PWD=$(shell pwd)
 NETCDFFILE=ncfile/default/expects/usr/agr
+NETCDFOUT=out.nc
 
 clean-netcdf-all::
 	#cleaning netcdf-cassandra
@@ -29,6 +30,10 @@ clean-netcdf-all::
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive
 	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-hive.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive/pom.xml clean package
+	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport
+	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdfdirectexport.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-direct-export
+	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/pom.xml clean package
+
 
 
 cassandra-import::
@@ -89,6 +94,13 @@ get-dataset::
 	$(DOCKER) exec -it cassandra cqlsh -
 
 #ingestion of netcdf file
+#usage make ingest-file NETCDFFILE=yourfilewithfullpath 
 ingest-file:: cassandra-import netcdf-queries netcdf-csv netcdf-hive-import-all
+
+#export of netcdf file
+#usage make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
+export-file::
+	HIVEIP=`$(DOCKER) network inspect hadoop | grep hive -n3 | tail -n1 |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b";`;HIP=`echo $$HIVEIP`; echo $$HIP;\
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/target/NetCDFDirectExport-0.0.1-SNAPSHOT-jar-with-dependencies.jar -a 0.0.0.0 -p 8110 -t $(NETCDFKEY)  -d$$HIVEIP -o $(NETCDFOUT)
 
 
