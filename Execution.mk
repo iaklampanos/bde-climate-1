@@ -2,7 +2,7 @@
 SHELL=/bin/bash
 CUSER=$(shell whoami)
 REG=d01
-RSTARTDT=20070101
+RSTARTDT=20070103
 RDURATION=12
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
@@ -29,12 +29,16 @@ run-wps::
 	"{'sst:$(RSTARTDT)','wps:1','wrf:0','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wps',"\
 	" [{agentname: 'wps', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}],"\
 	"toTimestamp(now()), toTimestamp(now()))";\
- 	 ssh bde2020@tornado.ipta.demokritos.gr "cd $$CURRUUID/Run/bin && "\
+ 	 ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
  	"./prepare.sh $(RSTARTDT) 1 0 $$d01 $$d02 $$d03 $(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 &&"\
  	" sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
- 	scp bde2020@tornado.ipta.demokritos.gr:~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* .;\
+ 	scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* .;\
  	for f in met_em.$(REG)*; do \
-  	make ingest-file NETCDFFILE=$$f;\
+	 ncrename -d -O z-dimension0003,z_dimension0003 $$f $$f;\
+	 ncrename -d -O z-dimension0012,z_dimension0012 $$f $$f;\
+	 ncrename -d -O z-dimension0016,z_dimension0016 $$f $$f;\
+	 ncrename -d -O z-dimension0024,z_dimension0024 $$f $$f;\
+	 make ingest-file NETCDFFILE=$$f;\
  	done;\
  	ALISTI=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"`;\
  	/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
@@ -54,13 +58,17 @@ run-wps::
  	echo "PROV_ID_ "$$CPAR;\
  	nclist=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | sed "s|[\{,\},\','\r']||g"`;\
  	for ncf in $$nclist; do \
-  	echo $$ncf;\
-  	make export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncf;\
+  	 echo $$ncf;\
+  	 make export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncf;\
+	 ncrename -d -O z_dimension0003,z-dimension0003 $$f $$f;\
+	 ncrename -d -O z_dimension0012,z-dimension0012 $$f $$f;\
+	 ncrename -d -O z_dimension0016,z-dimension0016 $$f $$f;\
+	 ncrename -d -O z_dimension0024,z-dimension0024 $$f $$f;\
  	done;\
- 	ssh bde2020@tornado.ipta.demokritos.gr "cd $$CURRUUID/Run/WPS/ && if [ ! -d RunData ]; then echo 'RunData does not exist!'; cp -r RunData_init RunData;fi;";\
- 	scp ./met_em.$(REG)* bde2020@tornado.ipta.demokritos.gr:~/$$CURRUUID/Run/WPS/RunData/;\
-	rm ./met_em.$(REG)*\
-	fi;	
+ 	ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WPS/ && if [ ! -d RunData ]; then echo 'RunData does not exist!'; cp -r RunData_init RunData;fi;";\
+ 	scp ./met_em.$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/;\
+	fi;\
+	rm ./met_em.$(REG)*;
 
 
 
@@ -88,10 +96,10 @@ run-wrf::
 	"{'sst:$(RSTARTDT)','wps:0','wrf:1','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wrf',"\
 	" [{agentname: 'wrf', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}],"\
 	"toTimestamp(now()), toTimestamp(now()))";\
- 	 ssh bde2020@tornado.ipta.demokritos.gr "cd $$CURRUUID/Run/bin && "\
+ 	 ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
  	"./prepare.sh $(RSTARTDT) 0 1 $$d01 $$d02 $$d03 $(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 &&"\
  	" sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
- 	scp bde2020@tornado.ipta.demokritos.gr:~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_$(REG)* .;\
+ 	scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_$(REG)* .;\
  	for f in wrfout_$(REG)*; do \
   	/home/stathis/Develop/bde-climate-1/sc5env/bin/python netpy.py $$f;\
   	make ingest-file NETCDFFILE=$$f;\
@@ -117,10 +125,10 @@ run-wrf::
   	echo $$ncf;\
   	make export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncf;\
  	done;\
- 	ssh bde2020@tornado.ipta.demokritos.gr "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
- 	scp ./wrfout_$(REG)* bde2020@tornado.ipta.demokritos.gr:~/$$CURRUUID/Run/WRF/run_$${reg^^}/;\
-	rm ./wrfout_$(REG)*;\
-	fi;
+ 	ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
+ 	scp ./wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/;\
+	fi;\
+	rm ./wrfout_$(REG)*;
 
 
 run-pyt::
