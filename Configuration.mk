@@ -18,6 +18,7 @@ CASSANDRA_DATA_DIR_HOST=$(shell echo $$CLIMATE1_CASSANDRA_DATA_DIR)
 CASSANDRA_DATA_DIR=/var/lib/cassandra
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
+CUSER=$(shell whoami)
 
 $(DOCKERCOMPOSE_YML):
 	### Creating the docker-compose yml
@@ -92,8 +93,9 @@ create-structure::
 	### Copy Dir and structure
 	scp bde2020user1.tar.gz $(USERNAM)@$(MODELSRV):~/; \
 	CURRUUID=`uuidgen`; \
-	ssh $(USERNAM)@$(MODELSRV) " tar zxf bde2020user1.tar.gz && mv bde2020user1 `echo $$USER`_$$CURRUUID"; \
-	`echo $$USER`_$$CURRUUID > curr.UUID; 
+	ssh $(USERNAM)@$(MODELSRV) " tar zxf bde2020user1.tar.gz && mv bde2020user1 $(CUSER)_$$CURRUUID"; \
+	echo $(CUSER)_$$CURRUUID > curr.UUID;\
+	echo "CURR_USER_ID_ "$(CUSER)_$$CURRUUID; 
 
 
 

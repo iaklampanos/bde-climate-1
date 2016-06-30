@@ -8,6 +8,7 @@ help::
 
 include Configuration.mk
 include Data.mk
+include Execution.mk
 
 QUERY=
 query::
