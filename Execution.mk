@@ -34,10 +34,10 @@ run-wps::
  	" sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
  	scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* .;\
  	for f in met_em.$(REG)*; do \
-	 ncrename -d -O z-dimension0003,z_dimension0003 $$f $$f;\
-	 ncrename -d -O z-dimension0012,z_dimension0012 $$f $$f;\
-	 ncrename -d -O z-dimension0016,z_dimension0016 $$f $$f;\
-	 ncrename -d -O z-dimension0024,z_dimension0024 $$f $$f;\
+	 ncrename -O -d z-dimension0003,z_dimension0003 $$f $$f;\
+	 ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
+	 ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
+	 ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
 	 make ingest-file NETCDFFILE=$$f;\
  	done;\
  	ALISTI=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"`;\
@@ -48,22 +48,22 @@ run-wps::
  	/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "UPDATE testprov.prov set isvalid=True, paths={$$ipaths},"\
 	" lasteditedat=toTimestamp(now()),downscaling=[$$ALISTI] +downscaling"\
 	" WHERE id=$$CUUID";\
- 	echo "PROV_ID_ "$$CUUID;\
+ 	echo "PROV_ID_WPS_ "$$CUUID;\
 	else\
  	CPAR=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where "\
 	" isvalid=True and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01'"\
 	" and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' "\
 	" and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01'"\
 	" and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"|tail -n3 |head -n1|sed 's| ||g'`;\
- 	echo "PROV_ID_ "$$CPAR;\
+ 	echo "PROV_ID_WPS_ "$$CPAR;\
  	nclist=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | sed "s|[\{,\},\','\r']||g"`;\
  	for ncf in $$nclist; do \
   	 echo $$ncf;\
   	 make export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncf;\
-	 ncrename -d -O z_dimension0003,z-dimension0003 $$f $$f;\
-	 ncrename -d -O z_dimension0012,z-dimension0012 $$f $$f;\
-	 ncrename -d -O z_dimension0016,z-dimension0016 $$f $$f;\
-	 ncrename -d -O z_dimension0024,z-dimension0024 $$f $$f;\
+	 ncrename -O -d z_dimension0003,z-dimension0003 $$f $$f;\
+	 ncrename -O -d z_dimension0012,z-dimension0012 $$f $$f;\
+	 ncrename -O -d z_dimension0016,z-dimension0016 $$f $$f;\
+	 ncrename -O -d z_dimension0024,z-dimension0024 $$f $$f;\
  	done;\
  	ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WPS/ && if [ ! -d RunData ]; then echo 'RunData does not exist!'; cp -r RunData_init RunData;fi;";\
  	scp ./met_em.$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/;\
@@ -71,6 +71,18 @@ run-wps::
 	rm ./met_em.$(REG)*;
 
 
+run-wrf-nest::
+	### Run WRF  ###
+	#usage run-wrf RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours d01=1  d02=[0,1,12]	
+	d01=0;d02=0;d03=0;reg=$(REG);\
+	if [ "$(REG)" = d01d02 ];then \
+	 PFWRF=`make -s run-wrf REG=d01 | grep "PROV_ID_WRF_";`\
+	 PFWPS=`make -s run-wps REG=d02 | grep "PROV_ID_";`\
+	 PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
+	 PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
+	fi;\
+	if [ "$(REG)" = d02d03 ];then d02=1; fi;\
+	CURRUUID=`cat curr.UUID`;
 
 
 run-wrf::
@@ -112,14 +124,14 @@ run-wrf::
  	/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "UPDATE testprov.prov set isvalid=True, paths={$$ipaths},"\
 	" lasteditedat=toTimestamp(now()),downscaling=[$$ALISTI] +downscaling"\
 	" WHERE id=$$CUUID";\
- 	echo "PROV_ID_ "$$CUUID;\
+ 	echo "PROV_ID_WRF_ "$$CUUID;\
 	else\
  	CPAR=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where "\
 	" isvalid=True and paramset contains 'wrf:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01'"\
 	" and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' "\
 	" and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01'"\
 	" and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"|tail -n3 |head -n1|sed 's| ||g'`;\
- 	echo "PROV_ID_ "$$CPAR;\
+ 	echo "PROV_ID_WRF_ "$$CPAR;\
  	nclist=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | sed "s|[\{,\},\','\r']||g"`;\
  	for ncf in $$nclist; do \
   	echo $$ncf;\
@@ -131,5 +143,3 @@ run-wrf::
 	rm ./wrfout_$(REG)*;
 
 
-run-pyt::
-	/home/stathis/Develop/bde-climate-1/sc5env/bin/python netpy.py $$f;\

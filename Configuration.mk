@@ -53,7 +53,7 @@ compose:: init compose-hadoop-hive
 
 create-cassandra-schema::
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
-	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-cassandra.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
+	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdf-cassandra-st.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/pom.xml clean package;\
 	sleep 5; \
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110;

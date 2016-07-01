@@ -17,7 +17,7 @@ NETCDFOUT=out.nc
 clean-netcdf-all::
 	#cleaning netcdf-cassandra
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra
-	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-cassandra.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra
+	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdf-cassandra-st.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/pom.xml clean package
 	#cleaning netcdf-csv
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-csv
@@ -28,10 +28,10 @@ clean-netcdf-all::
 	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-queries.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/pom.xml clean package
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive
-	$(GIT) clone https://gmouchakis@bitbucket.org/gmouchakis/netcdf-hive.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive
+	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdf-hive-st.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-hive/pom.xml clean package
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport
-	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdfdirectexport.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-direct-export
+	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdfdirectexport.git $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/pom.xml clean package
 
 
@@ -54,7 +54,7 @@ cassandra-import-all::
 
 netcdf-csv::
 	#expand netcdf to csv
-	cd $(NETCDF_DATA_DIR)/ && rm *.gz;\
+	rm $(NETCDF_DATA_DIR)/*.gz;\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-csv/target/netcdf-csv-0.0.1-SNAPSHOT-jar-with-dependencies.jar -c -i $(NETCDFFILE) -o $(NETCDF_DATA_DIR)/; 
 
 netcdf-csv-all::
