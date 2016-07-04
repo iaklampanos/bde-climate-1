@@ -3,7 +3,7 @@ SHELL=/bin/bash
 CUSER=$(shell whoami)
 REG=d01
 RSTARTDT=20070103
-RDURATION=12
+RDURATION=6
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
@@ -182,7 +182,6 @@ run-wrf::
 	" and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n1| grep 1`;\
 	echo "the grep result " $$CRES;\
 	if [ "$$CRES" = "" ];then \
-	  echo "inside if";\
 	  CUUID=`uuidgen`;\
 	  /usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e \
 	"INSERT INTO testprov.prov (id, isvalid, bparentid, paths, paramset, type, downscaling, createdat, lasteditedat) "\
