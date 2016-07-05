@@ -55,7 +55,7 @@ cassandra-import-all::
 
 netcdf-csv::
 	#expand netcdf to csv
-	rm $(NETCDF_DATA_DIR)/*.gz;\
+	rm -f $(NETCDF_DATA_DIR)/*.gz;\
 	echo "progress:Expanding NetCDF to csv.gz";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-csv/target/netcdf-csv-0.0.1-SNAPSHOT-jar-with-dependencies.jar -c -i $(NETCDFFILE) -o $(NETCDF_DATA_DIR)/; 
 
@@ -69,7 +69,7 @@ netcdf-queries::
 	CHT=`$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/target/netcdf-queries-0.0.1-SNAPSHOT-jar-with-dependencies.jar $(NETCDFFILE) | sed 's|:|_|g;s|CREATE TABLE|CREATE TABLE IF NOT EXISTS|g'`;\
 	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
 	echo "progress:Creating Hive Tables OK!";
-	
+
 
 netcdf-queries-all::
 	#output hive table schema "create table..."
