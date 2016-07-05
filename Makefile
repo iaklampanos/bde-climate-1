@@ -1,4 +1,4 @@
-# Main makefile for the first BDE climate pilot prototype
+own# Main makefile for the first BDE climate pilot prototype
 
 SHELL=/bin/bash
 SED=$(shell which sed)

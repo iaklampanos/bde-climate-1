@@ -1,18 +1,19 @@
 from __future__ import print_function
-import subprocess
+from subprocess import Popen, PIPE, STDOUT
 import os
 import sys
 import matplotlib
+
 
 from ipywidgets import interact, interactive, fixed
 import ipywidgets as widgets
 
 HIVE='localhost:10000'
 
-PILOT_PATH='/home/stathis/bde-climate-1'
+PILOT_PATH = '/home/stathis/bde-climate-1'
+NC_FILENAME = '/home/stathis/sc5/rsdscs_Amon_HadGEM2-ES_rcp26_r2i1p1_200512-203011.nc'
 
 def run_shell_command(s):
-
     c = s.split('|')
     cp = None # the current process
 
@@ -30,18 +31,28 @@ def run_shell_command(s):
 
     cp.wait() 
 
+def run_shell_command(s):
+    subprocess.call(s)
 
 def help():
     print('Hello, world')
 
 def _create_user_structure():
-   	''' make create-structure'''
-	run_shell_command("make -C /home/stathis/bde-climate-1 create-structure")
+    ''' make create-structure'''
+    run_shell_command("make -C /home/stathis/bde-climate-1 create-structure")
     
-def ingest(filename):
-    ''' make ingest-file NETCDFFILE=yourfilewithfullpath ''' 
-    print('Ingesting', filename)
+def ingest_st(filename):
+    '''test ingest'''
+    os.popen("make -C /home/stathis/bde-climate-1 ingest-file NETCDFFILE=test")
 
+def ingest(filename):
+    ''' make ingest-file NETCDFFILE=yourfilewithfullpath '''
+    print('Ingesting', filename)
+    # s = run_shell_command("make -C /home/stathis/bde-climate-1 ingest-file NETCDFFILE=" + filename)
+    s = run_shell_command('ls')
+    print(s)
+    
+    
 def export(filename):
     ''' make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile '''
     ''' MAY support more selective use-case '''
@@ -61,3 +72,20 @@ def view_data(data=0):
     ''' matplotlib thingy '''
     print('a')
     pass
+
+def hive_bash(clusteruser='stathis', clusterip='172.17.20.106', clim1_bd='/home/stathis/Downloads', clim1_dd='/home/stathis/bde-climate-1', command='ls /home'):
+    sti = 'ssh __UNAME__@__HOST__ -t "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__ && docker exec -it hive __COMMND__"' 
+    sti = sti.replace('__UNAME__', clusteruser)
+    sti = sti.replace( '__HOST__', clusterip)
+    sti = sti.replace('__DATA_DIR__', clim1_dd)
+    sti = sti.replace('__BUILD_DIR__', clim1_bd)
+    sti = sti.replace('__COMMND__', command)
+    print(sti)
+    print(exec_bash(sti))
+
+
+def exec_bash(command):
+    return os.popen(command).read()
+    #p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
+    #output = p.stdout.read()
+    #return output
