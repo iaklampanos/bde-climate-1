@@ -56,7 +56,9 @@ create-cassandra-schema::
 	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdf-cassandra-st.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/pom.xml clean package;\
 	sleep 5; \
-	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110;
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110;\
+	$(DOCKER) cp create_prov_schema.cql bdeclimate1_cassandra_1:/home/;\
+	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -f /home/create_prov_schema.cql;		
 
 configure-start-semagrow:: create-cassandra-schema
 	#configure semagrow to talk to cassandra

@@ -39,12 +39,13 @@ clean-netcdf-all::
 cassandra-import::
 	##import the netcdf headers to cassandra
 	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -e "CREATE TABLE IF NOT EXISTS netcdf_headers.dataset_times ( dataset text, start_date text,end_date text, step text, PRIMARY KEY (dataset));";\
+	echo "progress:Importing $(NETCDFFILE) to Cassandra!";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110 -f $(NETCDFFILE);FN=`basename $(NETCDFFILE)`;\
 	STRDAT=`ncks -v Times $(NETCDFFILE) | grep -F Time[0] | cut -d "=" -f2| sed "s/'//g"`;\
 	ENDDAT=`ncks -v Times $(NETCDFFILE) | tail -n2 | head -n1 | cut -d "=" -f2| sed "s/'//g"`; \
 	STEPDAT=`ncks -v Times $(NETCDFFILE) | grep "Times dimension 0:" | cut -d "=" -f2 | sed 's/(Record non-coordinate dimension)//g;s/ //g'`;\
 	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO netcdf_headers.dataset_times (dataset, start_date, end_date, step) VALUES('$$FN', '$$STRDAT', '$$ENDDAT','$$STEPDAT');";\
-
+	echo "progress:Importing $(NETCDFFILE) to Cassandra OK!";\
 
 
 cassandra-import-all::
@@ -55,6 +56,7 @@ cassandra-import-all::
 netcdf-csv::
 	#expand netcdf to csv
 	rm $(NETCDF_DATA_DIR)/*.gz;\
+	echo "progress:Expanding NetCDF to csv.gz";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-csv/target/netcdf-csv-0.0.1-SNAPSHOT-jar-with-dependencies.jar -c -i $(NETCDFFILE) -o $(NETCDF_DATA_DIR)/; 
 
 netcdf-csv-all::
@@ -63,9 +65,11 @@ netcdf-csv-all::
 	done;
 
 netcdf-queries::
+	echo "progress:Creating Hive Tables !";\
 	CHT=`$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/target/netcdf-queries-0.0.1-SNAPSHOT-jar-with-dependencies.jar $(NETCDFFILE) | sed 's|:|_|g;s|CREATE TABLE|CREATE TABLE IF NOT EXISTS|g'`;\
-	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;
-
+	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
+	echo "progress:Creating Hive Tables OK!";
+	
 
 netcdf-queries-all::
 	#output hive table schema "create table..."
@@ -80,7 +84,7 @@ beeline::
 netcdf-hive-import::
 	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo $$HFL;\
 	$(DOCKER) cp $(NETCDFFILE) hive:/home/$$HFL;\
-	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`; echo $$TBL;\
+	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
 	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$$HFL' OVERWRITE INTO TABLE $$TBL";
 
 netcdf-hive-import-all:: 
@@ -100,7 +104,9 @@ ingest-file:: cassandra-import netcdf-queries netcdf-csv netcdf-hive-import-all
 #export of netcdf file
 #usage make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
 export-file::
-	HIVEIP=`$(DOCKER) network inspect hadoop | grep hive -n3 | tail -n1 |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b";`;HIP=`echo $$HIVEIP`; echo $$HIP;\
-	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/target/NetCDFDirectExport-0.0.1-SNAPSHOT-jar-with-dependencies.jar -a 0.0.0.0 -p 8110 -t $(NETCDFKEY)  -d$$HIVEIP -o $(NETCDFOUT)
+	echo "progress:Exporting File "$(NETCDFOUT);\
+	HIVEIP=`$(DOCKER) network inspect hadoop | grep hive -n3 | tail -n1 |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b";`;HIP=`echo $$HIVEIP`;\
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/target/NetCDFDirectExport-0.0.1-SNAPSHOT-jar-with-dependencies.jar -a 0.0.0.0 -p 8110 -t $(NETCDFKEY)  -d$$HIVEIP -o $(NETCDFOUT);\
+	echo "progress:Export File "$(NETCDFOUT)" OK!";
 
 
