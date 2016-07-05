@@ -20,6 +20,9 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 CUSER=$(shell whoami)
 
+conf-help::
+	@echo $(MAKEOPTS)
+
 $(DOCKERCOMPOSE_YML):
 	### Creating the docker-compose yml
 	cat $(DOCKERCOMPOSE_TEMPLATE) | $(SED) 's|$(TEMPL_CASS_DATA)|$(CASSANDRA_DATA_DIR)|g;s|$(TEMPL_CASS_DATA_HOST)|$(CASSANDRA_DATA_DIR_HOST)|g;s|$(TEMPL_BUILD_DIR)|$(DOCKERCOMPOSE_BUILD_DIR)|g' $(DOCKERCOMPOSE_TEMPLATE) > $@
@@ -49,7 +52,7 @@ compose-hadoop-hive:: init-hadoop-hive
 
 compose:: init compose-hadoop-hive
 	### Executing docker-compose:
-	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d && make configure-start-semagrow;
+	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d && make $(MAKEOPTS) configure-start-semagrow;
 
 create-cassandra-schema::
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\

@@ -50,7 +50,7 @@ cassandra-import::
 
 cassandra-import-all::
 	for f in $(NETCDFS); do \
-		make cassandra-import NETCDFFILE=$$f;\
+		make $(MAKEOPTS) cassandra-import NETCDFFILE=$$f;\
 	done;  
 
 netcdf-csv::
@@ -61,7 +61,7 @@ netcdf-csv::
 
 netcdf-csv-all::
 	for f in $(NETCDFS); do \
-		make netcdf-csv NETCDFFILE=$$f;\
+		make $(MAKEOPTS) netcdf-csv NETCDFFILE=$$f;\
 	done;
 
 netcdf-queries::
@@ -74,7 +74,7 @@ netcdf-queries::
 netcdf-queries-all::
 	#output hive table schema "create table..."
 	for f in $(NETCDFS); do \
-		make netcdf-queries NETCDFFILE=$$f;\
+		make $(MAKEOPTS) netcdf-queries NETCDFFILE=$$f;\
 	done;
 
 BEELINE_PARAMS=""
@@ -90,7 +90,7 @@ netcdf-hive-import::
 netcdf-hive-import-all:: 
 	#import csv to hive
 	for f in $(NETCDFCSVS); do \
-		make netcdf-hive-import NETCDFFILE=$$f;\
+		make $(MAKEOPTS) netcdf-hive-import NETCDFFILE=$$f;\
 	done;
 
 
@@ -98,11 +98,11 @@ get-dataset::
 	$(DOCKER) exec -it cassandra cqlsh -
 
 #ingestion of netcdf file
-#usage make ingest-file NETCDFFILE=yourfilewithfullpath 
+#usage make $(MAKEOPTS) ingest-file NETCDFFILE=yourfilewithfullpath 
 ingest-file:: cassandra-import netcdf-queries netcdf-csv netcdf-hive-import-all
 
 #export of netcdf file
-#usage make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
+#usage make $(MAKEOPTS) export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
 export-file::
 	echo "progress:Exporting File "$(NETCDFOUT);\
 	HIVEIP=`$(DOCKER) network inspect hadoop | grep hive -n3 | tail -n1 |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b";`;HIP=`echo $$HIVEIP`;\

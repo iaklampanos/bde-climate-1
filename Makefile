@@ -2,6 +2,7 @@
 
 SHELL=/bin/bash
 SED=$(shell which sed)
+MAKEOPTS=-C $(shell pwd)
 
 help::
 	@echo "Usage help goes here"
