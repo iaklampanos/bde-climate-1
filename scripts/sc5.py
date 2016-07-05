@@ -89,3 +89,26 @@ def exec_bash(command):
     #p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     #output = p.stdout.read()
     #return output
+
+import subprocess
+import sys
+from subprocess import Popen, PIPE, STDOUT
+
+def execu(command, pattern=None, fn=sys.stdout.write):
+    """
+    pattern is not really useful;
+    fn is being called multiple times until the command has completed
+    """
+    p = subprocess.Popen(str(command), shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    while True:
+        l = p.stdout.readline()
+        if pattern == None:
+            fn(l)
+        else:
+            if str(l).find(pattern) > 0:
+                fn(l)
+        if p.poll() != None:
+            break
+
+# Test:
+# execu('ls / | grep "te"')
