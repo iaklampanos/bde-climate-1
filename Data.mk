@@ -13,6 +13,7 @@ NETCDFCSVS=$(shell ls $(NETCDF_DATA_DIR)/*.gz)
 PWD=$(shell pwd)
 NETCDFFILE=ncfile/default/expects/usr/agr
 NETCDFOUT=out.nc
+CUSER=someuser
 
 clean-netcdf-all::
 	#cleaning netcdf-cassandra
@@ -48,6 +49,10 @@ cassandra-import::
 	echo "progress:Importing $(NETCDFFILE) to Cassandra OK!";\
 
 
+cassandra-get-datasets::
+	 $(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "select distinct dataset from netcdf_headers.global_attributes;" | tail -n+4 | head -n-2
+
+
 cassandra-import-all::
 	for f in $(NETCDFS); do \
 		make $(MAKEOPTS) cassandra-import NETCDFFILE=$$f;\
@@ -67,7 +72,7 @@ netcdf-csv-all::
 netcdf-queries::
 	echo "progress:Creating Hive Tables !";\
 	CHT=`$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/target/netcdf-queries-0.0.1-SNAPSHOT-jar-with-dependencies.jar $(NETCDFFILE) | sed 's|:|_|g;s|CREATE TABLE|CREATE TABLE IF NOT EXISTS|g'`;\
-	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
+	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
 	echo "progress:Creating Hive Tables OK!";
 
 
@@ -82,15 +87,17 @@ beeline::
 	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 $(BEELINE_PARAMS)
 
 netcdf-hive-import::
+	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER);\
 	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo $$HFL;\
-	$(DOCKER) cp $(NETCDFFILE) hive:/home/$$HFL;\
+	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL;\
 	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
-	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$$HFL' OVERWRITE INTO TABLE $$TBL";
+	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL";\
+	$(DOCKER) exec -i hive rm -f /home/$(CUSER)/*.gz;
 
 netcdf-hive-import-all:: 
 	#import csv to hive
 	for f in $(NETCDFCSVS); do \
-		make $(MAKEOPTS) netcdf-hive-import NETCDFFILE=$$f;\
+		make $(MAKEOPTS) netcdf-hive-import NETCDFFILE=$$f CUSER=$(CUSER);\
 	done;
 
 
