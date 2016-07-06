@@ -8,6 +8,12 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
 
+test-cat::
+	CUUID=`uuidgen`;\
+	echo $(CUSER)_$$CUUID > "$(CUSER)_"curr.UUID;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;echo $$CURRUUID;
+
+
 run-wps::
 	### Run WPS  ###
 	#usage run-wps RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours
@@ -15,7 +21,7 @@ run-wps::
 	if [ "$(REG)" = "d01" ]; then d01=1; fi;\
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
-	CURRUUID=`cat curr.UUID`;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	CRES=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where "\
 	" isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01'"\
 	" and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' "\
@@ -74,7 +80,7 @@ run-wps-no-export-copy::
 	if [ "$(REG)" = "d01" ]; then d01=1; fi;\
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
-	CURRUUID=`cat curr.UUID`;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	CRES=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where "\
 	" isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01'"\
 	" and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' "\
@@ -101,11 +107,11 @@ run-wrf-nest::
 	### Run WRF NESTDOWN ###
 	#usage run-wrf RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours REG=<d01d02|d02d03>
 	d01=0; d02=0; d03=0; reg=$(REG);\
-	CURRUUID=`cat curr.UUID`;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	if [ "$(REG)" = d01d02 ];then \
 	  d02=12;\
 	  reg=d02;\
-	  PFWRF=`make $(MAKEOPTS) -s run-wrf REG=d01 | grep "PROV_ID_WRF_"`;\
+	  PFWRF=`make $(MAKEOPTS) -s run-wrf-no-export-copy REG=d01 | grep "PROV_ID_WRF_"`;\
 	  PFWPS=`make $(MAKEOPTS) -s run-wps REG=d02 | grep "PROV_ID_WPS_"`;\
 	  PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
 	  PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
@@ -174,7 +180,7 @@ run-wrf::
 	if [ "$(REG)" = d01 ]; then d01=1; fi;\
 	if [ "$(REG)" = d02 ]; then d02=1; fi;\
 	if [ "$(REG)" = d03 ]; then d03=1; fi;\
-	CURRUUID=`cat curr.UUID`;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	PF=`make $(MAKEOPTS) -s run-wps | grep "PROV_ID_WPS_"`;\
 	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
 	CRES=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where bparentid=$$PFI and isvalid=True and user='$$CURRUUID' and paramset contains 'wrf:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n1| grep 1`;\
@@ -215,7 +221,7 @@ run-wrf-no-export-copy::
 	if [ "$(REG)" = d01 ]; then d01=1; fi;\
 	if [ "$(REG)" = d02 ]; then d02=1; fi;\
 	if [ "$(REG)" = d03 ]; then d03=1; fi;\
-	CURRUUID=`cat curr.UUID`;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	PF=`make $(MAKEOPTS) -s run-wps-no-export-copy | grep "PROV_ID_WPS_"`;\
 	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
 	CRES=`/usr/bin/docker exec -it bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where bparentid=$$PFI and isvalid=True and user='$$CURRUUID' and paramset contains 'wrf:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n1| grep 1`;\

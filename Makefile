@@ -1,4 +1,4 @@
-own# Main makefile for the first BDE climate pilot prototype
+# Main makefile for the first BDE climate pilot prototype
 
 SHELL=/bin/bash
 SED=$(shell which sed)
@@ -10,6 +10,7 @@ help::
 include Configuration.mk
 include Data.mk
 include Execution.mk
+include Appl.mk
 
 QUERY=
 query::

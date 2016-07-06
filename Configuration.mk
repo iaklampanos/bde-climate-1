@@ -99,7 +99,7 @@ create-structure::
 	scp bde2020user1.tar.gz $(USERNAM)@$(MODELSRV):~/; \
 	CURRUUID=`uuidgen`; \
 	ssh $(USERNAM)@$(MODELSRV) " tar zxf bde2020user1.tar.gz && mv bde2020user1 $(CUSER)_$$CURRUUID"; \
-	echo $(CUSER)_$$CURRUUID > curr.UUID;\
+	echo $(CUSER)_$$CURRUUID > "$(CUSER)_"curr.UUID;\
 	echo "CURR_USER_ID_ "$(CUSER)_$$CURRUUID; 
 
 
