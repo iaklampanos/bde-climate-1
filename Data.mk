@@ -108,6 +108,10 @@ get-dataset::
 #usage make $(MAKEOPTS) ingest-file NETCDFFILE=yourfilewithfullpath 
 ingest-file:: cassandra-import netcdf-queries netcdf-csv netcdf-hive-import-all
 
+ingest-file-withprov:: ingest-file
+	CUUID=`uuidgen`;\
+	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, paths, type, createdat, lasteditedat) VALUES ($$CUUID, '$(CUSER)', True, {'$(NETCDFFILE)'}, 'manual_ingest', toTimestamp(now()), toTimestamp(now()))";\
+	
 #export of netcdf file
 #usage make $(MAKEOPTS) export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
 export-file::
