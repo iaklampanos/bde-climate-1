@@ -19,6 +19,8 @@ CASSANDRA_DATA_DIR=/var/lib/cassandra
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 CUSER=$(shell whoami)
+MAKEOPTS=
+
 
 conf-help::
 	@echo $(MAKEOPTS)
@@ -52,15 +54,15 @@ compose-hadoop-hive:: init-hadoop-hive
 
 compose:: init compose-hadoop-hive
 	### Executing docker-compose:
-	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d && make $(MAKEOPTS) configure-start-semagrow;
+	$(DOCKERCOMPOSE) -f $(DOCKERCOMPOSE_YML) up -d && make create-cassandra-schema;
 
 create-cassandra-schema::
 	rm -rf $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
 	$(GIT) clone https://grstathis@bitbucket.org/grstathis/netcdf-cassandra-st.git $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra;\
 	$(MVN) -f $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/pom.xml clean package;\
-	sleep 5; \
+	sleep 15; \
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110;\
-	$(DOCKER) cp create_prov_schema.cql bdeclimate1_cassandra_1:/home/;\
+	$(DOCKER) cp prov/create_prov_schema.cql bdeclimate1_cassandra_1:/home/;\
 	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -f /home/create_prov_schema.cql;		
 
 configure-start-semagrow:: create-cassandra-schema

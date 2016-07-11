@@ -14,6 +14,7 @@ PWD=$(shell pwd)
 NETCDFFILE=ncfile/default/expects/usr/agr
 NETCDFOUT=out.nc
 CUSER=someuser
+NETCDFVAR=all
 
 clean-netcdf-all::
 	#cleaning netcdf-cassandra
@@ -39,14 +40,14 @@ clean-netcdf-all::
 
 cassandra-import::
 	##import the netcdf headers to cassandra
-	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -e "CREATE TABLE IF NOT EXISTS netcdf_headers.dataset_times ( dataset text, start_date text,end_date text, step text, PRIMARY KEY (dataset));";\
-	echo "progress:Importing $(NETCDFFILE) to Cassandra!";\
+	$(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "CREATE TABLE IF NOT EXISTS netcdf_headers.dataset_times ( dataset text, start_date text,end_date text, step text, PRIMARY KEY (dataset));";\
+	echo "Progress: Importing $(NETCDFFILE) to Cassandra!";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110 -f $(NETCDFFILE);FN=`basename $(NETCDFFILE)`;\
 	STRDAT=`ncks -v Times $(NETCDFFILE) | grep -F Time[0] | cut -d "=" -f2| sed "s/'//g"`;\
 	ENDDAT=`ncks -v Times $(NETCDFFILE) | tail -n2 | head -n1 | cut -d "=" -f2| sed "s/'//g"`; \
 	STEPDAT=`ncks -v Times $(NETCDFFILE) | grep "Times dimension 0:" | cut -d "=" -f2 | sed 's/(Record non-coordinate dimension)//g;s/ //g'`;\
-	$(DOCKER) exec -it bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO netcdf_headers.dataset_times (dataset, start_date, end_date, step) VALUES('$$FN', '$$STRDAT', '$$ENDDAT','$$STEPDAT');";\
-	echo "progress:Importing $(NETCDFFILE) to Cassandra OK!";\
+	$(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO netcdf_headers.dataset_times (dataset, start_date, end_date, step) VALUES('$$FN', '$$STRDAT', '$$ENDDAT','$$STEPDAT');";\
+	echo "Progress: Importing $(NETCDFFILE) to Cassandra OK!";\
 
 
 cassandra-get-datasets::
@@ -55,31 +56,31 @@ cassandra-get-datasets::
 
 cassandra-import-all::
 	for f in $(NETCDFS); do \
-		make $(MAKEOPTS) cassandra-import NETCDFFILE=$$f;\
+		make cassandra-import NETCDFFILE=$$f;\
 	done;  
 
 netcdf-csv::
 	#expand netcdf to csv
 	rm -f $(NETCDF_DATA_DIR)/*.gz;\
-	echo "progress:Expanding NetCDF to csv.gz";\
+	echo "Progress: Expanding NetCDF to csv.gz";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-csv/target/netcdf-csv-0.0.1-SNAPSHOT-jar-with-dependencies.jar -c -i $(NETCDFFILE) -o $(NETCDF_DATA_DIR)/; 
 
 netcdf-csv-all::
 	for f in $(NETCDFS); do \
-		make $(MAKEOPTS) netcdf-csv NETCDFFILE=$$f;\
+		make netcdf-csv NETCDFFILE=$$f;\
 	done;
 
 netcdf-queries::
-	echo "progress:Creating Hive Tables !";\
+	echo "Progress: Creating Hive Tables !";\
 	CHT=`$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/target/netcdf-queries-0.0.1-SNAPSHOT-jar-with-dependencies.jar $(NETCDFFILE) | sed 's|:|_|g;s|CREATE TABLE|CREATE TABLE IF NOT EXISTS|g'`;\
 	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
-	echo "progress:Creating Hive Tables OK!";
+	echo "Progress: Creating Hive Tables OK!";
 
 
 netcdf-queries-all::
 	#output hive table schema "create table..."
 	for f in $(NETCDFS); do \
-		make $(MAKEOPTS) netcdf-queries NETCDFFILE=$$f;\
+		make netcdf-queries NETCDFFILE=$$f;\
 	done;
 
 BEELINE_PARAMS=""
@@ -88,7 +89,7 @@ beeline::
 
 netcdf-hive-import::
 	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER);\
-	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo $$HFL;\
+	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Importing segment: "$$HFL;\
 	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL;\
 	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
 	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL";\
@@ -97,7 +98,7 @@ netcdf-hive-import::
 netcdf-hive-import-all:: 
 	#import csv to hive
 	for f in $(NETCDFCSVS); do \
-		make $(MAKEOPTS) netcdf-hive-import NETCDFFILE=$$f CUSER=$(CUSER);\
+		make netcdf-hive-import NETCDFFILE=$$f CUSER=$(CUSER);\
 	done;
 
 
@@ -115,9 +116,9 @@ ingest-file-withprov:: ingest-file
 #export of netcdf file
 #usage make $(MAKEOPTS) export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
 export-file::
-	echo "progress:Exporting File "$(NETCDFOUT);\
+	echo "Progress: Exporting File "$(NETCDFOUT);\
 	HIVEIP=`$(DOCKER) network inspect hadoop | grep hive -n3 | tail -n1 |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b";`;HIP=`echo $$HIVEIP`;\
-	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/target/NetCDFDirectExport-0.0.1-SNAPSHOT-jar-with-dependencies.jar -a 0.0.0.0 -p 8110 -t $(NETCDFKEY)  -d$$HIVEIP -o $(NETCDFOUT);\
-	echo "progress:Export File "$(NETCDFOUT)" OK!";
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/NetCDFDirectExport/target/NetCDFDirectExport-0.0.1-SNAPSHOT-jar-with-dependencies.jar -a 0.0.0.0 -p 8110 -t $(NETCDFKEY)  -d$$HIVEIP -o $(NETCDFOUT) -v $(NETCDFVAR);\
+	echo "Progress: Export File "$(NETCDFOUT)" OK!";
 
 
