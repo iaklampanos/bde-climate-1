@@ -40,7 +40,6 @@ clean-netcdf-all::
 
 cassandra-import::
 	##import the netcdf headers to cassandra
-	$(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "CREATE TABLE IF NOT EXISTS netcdf_headers.dataset_times ( dataset text, start_date text,end_date text, step text, PRIMARY KEY (dataset));";\
 	echo "Progress: Importing $(NETCDFFILE) to Cassandra!";\
 	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110 -f $(NETCDFFILE);FN=`basename $(NETCDFFILE)`;\
 	STRDAT=`ncks -v Times $(NETCDFFILE) | grep -F Time[0] | cut -d "=" -f2| sed "s/'//g"`;\
@@ -73,7 +72,7 @@ netcdf-csv-all::
 netcdf-queries::
 	echo "Progress: Creating Hive Tables !";\
 	CHT=`$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-queries/target/netcdf-queries-0.0.1-SNAPSHOT-jar-with-dependencies.jar $(NETCDFFILE) | sed 's|:|_|g;s|CREATE TABLE|CREATE TABLE IF NOT EXISTS|g'`;\
-	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
+	$(DOCKER) exec -i hive beeline --silent=true -u jdbc:hive2://localhost:10000 -e "$$CHT" ;\
 	echo "Progress: Creating Hive Tables OK!";
 
 
@@ -85,14 +84,14 @@ netcdf-queries-all::
 
 BEELINE_PARAMS=""
 beeline::
-	$(DOCKER) exec -it hive beeline -u jdbc:hive2://localhost:10000 $(BEELINE_PARAMS)
+	$(DOCKER) exec -it hive beeline --silent=true -u jdbc:hive2://localhost:10000 $(BEELINE_PARAMS)
 
 netcdf-hive-import::
 	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER);\
 	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Importing segment: "$$HFL;\
 	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL;\
 	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
-	$(DOCKER) exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL";\
+	$(DOCKER) exec -i hive beeline --silent=true -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL";\
 	$(DOCKER) exec -i hive rm -f /home/$(CUSER)/*.gz;
 
 netcdf-hive-import-all:: 

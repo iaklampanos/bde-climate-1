@@ -11,7 +11,7 @@ services:
     links:
     - cassandra
   cassandra:
-    image: cassandra
+    image: cassandra:3.2
     ports:
     - "8110:9042"
     - "8120:9160"

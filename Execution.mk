@@ -31,11 +31,13 @@ run-wps::
 	if [ "$$CRES" = "" ];then \
 	  CUUID=`uuidgen`;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($$CUUID, '$$CURRUUID', False, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:1','wrf:0','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wps',[{agentname: 'wps', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))" ;\
+	  echo "Progress: Starting remote WPS";\
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
 	  "./prepare.sh $(RSTARTDT) 1 0 $$d01 $$d02 $$d03 $(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 &&"\
 	  " sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	  tmpdirwps=`mktemp -d`;\
 	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* $$tmpdirwps/ &&\
+	  ipaths=`ls -d $$tmpdirwps/met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	  for f in $$tmpdirwps/met_em.$(REG)*; do \
 	    ncrename -O -d z-dimension0003,z_dimension0003 $$f $$f;\
 	    ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
@@ -47,7 +49,6 @@ run-wps::
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID" ;\
 	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
 	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
-	  ipaths=`ls -d $$tmpdirwps/met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	  rm -rf $$tmpdirwps;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "UPDATE testprov.prov set isvalid=True, paths={$$ipaths}, lasteditedat=toTimestamp(now()),downscaling=[$$ALISTI] +downscaling WHERE id=$$CUUID" ;\
 	  echo "PROV_ID_WPS_ "$$CUUID;\
@@ -141,11 +142,13 @@ run-wrf-nest::
 	"{'sst:$(RSTARTDT)','wps:0','wrf:1','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wrf',"\
 	" [{agentname: 'wrf', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}],"\
 	"toTimestamp(now()), toTimestamp(now()))";\
+	  echo "Progress: Starting remote WRF nest down";\
 	   ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
 	"./prepare.sh $(RSTARTDT) 0 1 $$d01 $$d02 $$d03 $(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 &&"\
 	" sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	   tmpdirwrf=`mktemp -d`;\
 	   scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_d01* $$tmpdirwrf/;\
+	   ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	   for f in $$tmpdirwrf/wrfout_d01*; do \
 	     ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	     mv $$f $$ftc;\
@@ -155,7 +158,6 @@ run-wrf-nest::
 	   /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
 	   ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
 	   ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
-	   ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	   rm -rf $$tmpdirwrf;\
 	   /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "UPDATE testprov.prov set isvalid=True, paths={$$ipaths},"\
 	" lasteditedat=toTimestamp(now()), downscaling=[$$ALISTI] +downscaling"\
@@ -194,11 +196,13 @@ run-wrf::
 	if [ "$$CRES" = "" ];then \
 	  CUUID=`uuidgen`;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, bparentid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($$CUUID, '$$CURRUUID', False, $$PFI, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:0','wrf:1','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wrf',[{agentname: 'wrf', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))";\
+	  echo "Progress: Starting remote WRF";\
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
 	  "./prepare.sh $(RSTARTDT) 0 1 $$d01 $$d02 $$d03 $(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 &&"\
 	  " sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	  tmpdirwrf=`mktemp -d`;\
 	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_d01* $$tmpdirwrf/;\
+	  ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	  for f in $$tmpdirwrf/wrfout_d01*; do \
 	    ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	    mv $$f $$ftc;\
@@ -208,7 +212,6 @@ run-wrf::
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
 	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
 	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
-	  ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
 	  rm -rf $$tmpdirwrf;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "UPDATE testprov.prov set isvalid=True, paths={$$ipaths}, lasteditedat=toTimestamp(now()),downscaling=[$$ALISTI] +downscaling WHERE id=$$CUUID";\
 	  echo "PROV_ID_WRF_ "$$CUUID;\
