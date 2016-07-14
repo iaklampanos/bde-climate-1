@@ -8,9 +8,19 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
 
-paths-k::
-	ipaths=`ls -d $$tmpdirwps/met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;
+PROV_WPS_SEL_::
+	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "SELECT id from testprov.prov where isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"
+	
 
+run-wps-anew::
+	### Run WPS  ###
+	#usage run-wps RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHoursi REG<d01|d02>
+	d01=0;d02=0;d03=0;reg=$(REG);\
+	if [ "$(REG)" = "d01" ]; then d01=1; fi;\
+	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
+	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
+	QUERYC=`cat $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/sc5_query.q | grep PROV_WPS_SEL___:_ | sed 's|PROV_WPS_SEL___:_||g'`;echo $$QUERYC;\
+	CRES=`make PROV_WPS_SEL | tail -n1| grep 1`;
 
 run-wps::
 	### Run WPS  ###
@@ -42,7 +52,7 @@ run-wps::
 	    ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
 	    ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
 	    make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
-	    ipaths="'"`basename $$ftc`"' "$$ipaths;\
+	    ipaths="'"`basename $$f`"' "$$ipaths;\
 	  done;\
 	  ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"` ;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID" ;\
