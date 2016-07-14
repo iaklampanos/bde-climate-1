@@ -8,10 +8,8 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
 
-test-cat::
-	CUUID=`uuidgen`;\
-	echo $(CUSER)_$$CUUID > "$(CUSER)_"curr.UUID;\
-	CURRUUID=`cat $(CUSER)_curr.UUID`;echo $$CURRUUID;
+paths-k::
+	ipaths=`ls -d $$tmpdirwps/met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;
 
 
 run-wps::
@@ -37,13 +35,14 @@ run-wps::
 	  " sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	  tmpdirwps=`mktemp -d`;\
 	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* $$tmpdirwps/ &&\
-	  ipaths=`ls -d $$tmpdirwps/met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
+	  ipaths="";\
 	  for f in $$tmpdirwps/met_em.$(REG)*; do \
 	    ncrename -O -d z-dimension0003,z_dimension0003 $$f $$f;\
 	    ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
 	    ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
 	    ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
 	    make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
+	    ipaths="'"`basename $$ftc`"' "$$ipaths;\
 	  done;\
 	  ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"` ;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID" ;\
@@ -79,32 +78,6 @@ run-ssh-cp::
 	if [ "$(REG)" = "d03" ]; then\
 	   ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WPS/RunData; for ft in met_em.$(REG)*; do ftc=`echo $$ft | sed 's|$(REG)|d01|g'`; cp $$ft met3/$$ftc; done;";\
 	fi;
-
-run-wps-no-export-copy::
-	d01=0;d02=0;d03=0;reg=$(REG);\
-	if [ "$(REG)" = "d01" ]; then d01=1; fi;\
-	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
-	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
-	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	CRES=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where "\
-	" isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01'"\
-	" and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' "\
-	" and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01'"\
-	" and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n1| grep 1` ;\
-	if [ "$$CRES" = "" ];then \
-	  CUUID=`uuidgen`;\
-	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($$CUUID, '$$CURRUUID', False, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:1','wrf:0','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wps',[{agentname: 'wps', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))" ;\
-	  ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"` ;\
-	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID" ;\
-	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
-	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
-	  ipaths=`ls -d met_em.$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
-	  echo "PROV_ID_WPS_ "$$CUUID;\
-	else\
-	  CPAR=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n3 |head -n1 |sed 's| ||g'` ;\
-	  echo "PROV_ID_WPS_ "$$CPAR;\
-	fi;\
-	make $(MAKEOPTS) run-ssh-cp;
 
 
 
@@ -148,11 +121,12 @@ run-wrf-nest::
 	" sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	   tmpdirwrf=`mktemp -d`;\
 	   scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_d01* $$tmpdirwrf/;\
-	   ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
+	   ipaths="";\
 	   for f in $$tmpdirwrf/wrfout_d01*; do \
 	     ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	     mv $$f $$ftc;\
 	     make $(MAKEOPTS) ingest-file NETCDFFILE=$$ftc NETCDF_DATA_DIR=$$tmpdirwrf;\
+	    ipaths="'"`basename $$ftc`"' "$$ipaths;\
 	   done;\
 	   ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"`;\
 	   /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
@@ -202,11 +176,12 @@ run-wrf::
 	  " sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && cd .. && echo done;";\
 	  tmpdirwrf=`mktemp -d`;\
 	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_d01* $$tmpdirwrf/;\
-	  ipaths=`ls -d $$tmpdirwrf/wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
+	  ipaths="";\
 	  for f in $$tmpdirwrf/wrfout_d01*; do \
 	    ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	    mv $$f $$ftc;\
 	    make $(MAKEOPTS) ingest-file NETCDFFILE=$$ftc NETCDF_DATA_DIR=$$tmpdirwrf;\
+	    ipaths="'"`basename $$ftc`"' "$$ipaths;\
 	  done;\
 	  ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"`;\
 	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
@@ -226,29 +201,4 @@ run-wrf::
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
 	  scp ./wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/;\
 	  rm -f ./wrfout_*;\
-	fi;
-
-
-run-wrf-no-export-copy::
-	d01=0; d02=0; d03=0; reg=$(REG);\
-	if [ "$(REG)" = d01 ]; then d01=1; fi;\
-	if [ "$(REG)" = d02 ]; then d02=1; fi;\
-	if [ "$(REG)" = d03 ]; then d03=1; fi;\
-	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	PF=`make $(MAKEOPTS) -s run-wps-no-export-copy | grep "PROV_ID_WPS_"`;\
-	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
-	CRES=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where bparentid=$$PFI and isvalid=True and user='$$CURRUUID' and paramset contains 'wrf:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n1| grep 1`;\
-	echo "the grep result " $$CRES;\
-	if [ "$$CRES" = "" ];then \
-	  CUUID=`uuidgen`;\
-	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, bparentid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($$CUUID, '$$CURRUUID', False, $$PFI, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:0','wrf:1','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wrf',[{agentname: 'wrf', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))";\
-	  ALISTI=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select downscaling from testprov.prov where id=$$CUUID;"`;\
-	  /usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "delete downscaling from testprov.prov where id=$$CUUID";\
-	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
-	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
-	  ipaths=`ls -d wrfout_$(REG)* | sed "s|^|'|g;s|$$|'|g"`; ipaths=`echo $$ipaths | sed 's| |,|g'`;\
-	  echo "PROV_ID_WRF_ "$$CUUID;\
-	else\
-	  CPAR=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where isvalid=True and user='$$CURRUUID' and paramset contains 'wrf:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"|tail -n3 |head -n1|sed 's| ||g'`;\
-	  echo "PROV_ID_WRF_ "$$CPAR;\
 	fi;

@@ -41,11 +41,11 @@ clean-netcdf-all::
 cassandra-import::
 	##import the netcdf headers to cassandra
 	echo "Progress: Importing $(NETCDFFILE) to Cassandra!";\
-	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110 -f $(NETCDFFILE);FN=`basename $(NETCDFFILE)`;\
+	$(JAVA) -jar $(NETCDF_CASSANDRA_BUILD_DIR)/netcdf-cassandra/target/netcdf-cassandra-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i -a 0.0.0.0 -p 8110 -f $(NETCDFFILE) && FN=`basename $(NETCDFFILE)` ;\
 	STRDAT=`ncks -v Times $(NETCDFFILE) | grep -F Time[0] | cut -d "=" -f2| sed "s/'//g"`;\
 	ENDDAT=`ncks -v Times $(NETCDFFILE) | tail -n2 | head -n1 | cut -d "=" -f2| sed "s/'//g"`; \
 	STEPDAT=`ncks -v Times $(NETCDFFILE) | grep "Times dimension 0:" | cut -d "=" -f2 | sed 's/(Record non-coordinate dimension)//g;s/ //g'`;\
-	$(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO netcdf_headers.dataset_times (dataset, start_date, end_date, step) VALUES('$$FN', '$$STRDAT', '$$ENDDAT','$$STEPDAT');";\
+	$(DOCKER) exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO netcdf_headers.dataset_times (dataset, start_date, end_date, step) VALUES('$$FN', '$$STRDAT', '$$ENDDAT','$$STEPDAT');" &&\
 	echo "Progress: Importing $(NETCDFFILE) to Cassandra OK!";\
 
 
@@ -87,12 +87,12 @@ beeline::
 	$(DOCKER) exec -it hive beeline --silent=true -u jdbc:hive2://localhost:10000 $(BEELINE_PARAMS)
 
 netcdf-hive-import::
-	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER);\
-	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Importing segment: "$$HFL;\
-	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL;\
+	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER) &&\
+	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Importing segment: "$$HFL &&\
+	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL &&\
 	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
-	$(DOCKER) exec -i hive beeline --silent=true -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL";\
-	$(DOCKER) exec -i hive rm -f /home/$(CUSER)/*.gz;
+	$(DOCKER) exec -i hive beeline --silent=true -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL" &&\
+	$(DOCKER) exec -i hive rm -rf /home/$(CUSER);
 
 netcdf-hive-import-all:: 
 	#import csv to hive
