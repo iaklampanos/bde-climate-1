@@ -11,6 +11,7 @@ include Configuration.mk
 include Data.mk
 include Execution.mk
 include Appl.mk
+include sc5_query.mk
 
 QUERY=
 query::

@@ -2,7 +2,7 @@
 DOCKER=$(shell which docker)
 DATASET=somedataset
 PROV_ID=someprovid
-REG=d02
+REG=d01
 DAY=07
 EDG=max
 

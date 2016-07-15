@@ -88,7 +88,7 @@ beeline::
 
 netcdf-hive-import::
 	$(DOCKER) exec -i hive mkdir -p /home/$(CUSER) &&\
-	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Importing segment: "$$HFL &&\
+	HFL=`basename $(NETCDFFILE) | sed -e 's|$(NETCDF_DATA_DIR)/||g;s|-|_|g;s|:|_|g'`;echo "Progress: Importing segment: "$$HFL &&\
 	$(DOCKER) cp $(NETCDFFILE) hive:/home/$(CUSER)/$$HFL &&\
 	TBL=`echo $${HFL:0:-7}| sed -e 's|\.|_|g' -e 's|-|_|g;s|:|_|g' -e 's|$(NETCDF_DATA_DIR)/||g'`;\
 	$(DOCKER) exec -i hive beeline --silent=true -u jdbc:hive2://localhost:10000 -e "LOAD DATA LOCAL INPATH '/home/$(CUSER)/$$HFL' OVERWRITE INTO TABLE $$TBL" &&\

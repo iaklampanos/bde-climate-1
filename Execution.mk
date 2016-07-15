@@ -8,9 +8,14 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
 
-PROV_WPS_SEL_::
-	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "SELECT id from testprov.prov where isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"
-	
+mock::
+	make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
+	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
+	  "./prepare.sh $(RSTARTDT) 1 0 $$d01 $$d02 $$d03 "\
+	  "$(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 && "\
+	  "sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && "\
+	  "cd .. && echo done;";\
+
 
 run-wps-anew::
 	### Run WPS  ###
@@ -19,8 +24,47 @@ run-wps-anew::
 	if [ "$(REG)" = "d01" ]; then d01=1; fi;\
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
-	QUERYC=`cat $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/sc5_query.q | grep PROV_WPS_SEL___:_ | sed 's|PROV_WPS_SEL___:_||g'`;echo $$QUERYC;\
-	CRES=`make PROV_WPS_SEL | tail -n1| grep 1`;
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
+	if make -f sc5_query.mk PROV_WPS_SEL_ &> cql_log; then\
+	  CRES=`make -f sc5_query.mk PROV_WPS_SEL_ | tail -n1 | grep 1`;\
+	else\
+	  echo "Progress: Error in CQL command, check cql_log file";\
+	  exit 1;\
+	fi;\
+	if [ "$$CRES" = "" ];then\
+	  CUUID=`uuidgen`;\
+	  if make -f sc5_query.mk PROV_WPS_INS_ \
+	     CUUID=$$CUUID &> cql_log; then\
+	    echo "Progress: Starting remote WPS";\
+	  else\
+	    echo "Progress: Error in CQL command, check cql_log file";\
+	    exit 1;\
+	  fi;\
+	  echo "Progress: Start of [Remote] ]WPS session on WRF Server";\
+	  echo "Progress: End of [Remote] WPS session on WRF Server";\
+	  tmpdirwps=`mktemp -d`;\
+	  echo "Progress: Copying WPS files from [Remote] WRF Server";\
+	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/met_em.$(REG)* $$tmpdirwps &&\
+	  echo "Progress: Copying WPS files from [Remote] WRF Server OK!";\
+	  ipaths="";\
+	  for f in $$tmpdirwps/met_em.$(REG)*; do \
+	    ncrename -O -d z-dimension0003,z_dimension0003 $$f $$f;\
+	    ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
+	    ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
+	    ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
+	    ipaths="'"`basename $$f`"',"$$ipaths;\
+	  done;echo $$ipaths;\
+	  rm -rf $$tmpdirwps &&\
+	  ALISTI=`make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=select`;\
+	  make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=delete &&\
+	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
+	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
+	  AL=`echo $$ALISTI |sed 's|(|_pb_|g;s|)|_pe_|g'`;echo "$$AL";\
+	  make -f sc5_query.mk PROV_UPD_ \
+	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log;\
+	  else\
+	    make -f sc5_query.mk PROV_WPS_SEL_;\
+	  fi;
 
 run-wps::
 	### Run WPS  ###
@@ -98,17 +142,19 @@ run-wrf-nest::
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
 	if [ "$(REG)" = d01d02 ];then \
 	  d02=12;\
+	  reg=d01;\
+	  PFWRF=`make $(MAKEOPTS) -s run-wrf REG=$$reg | grep "PROV_ID_WRF_"`;\
 	  reg=d02;\
-	  PFWRF=`make $(MAKEOPTS) -s run-wrf REG=d01 | grep "PROV_ID_WRF_"`;\
-	  PFWPS=`make $(MAKEOPTS) -s run-wps REG=d02 | grep "PROV_ID_WPS_"`;\
+	  PFWPS=`make $(MAKEOPTS) -s run-wps REG=$$reg | grep "PROV_ID_WPS_"`;\
 	  PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
 	  PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
 	fi;\
 	if [ "$(REG)" = d02d03 ];then \
 	  d03=12;\
+	  reg=d02;\
+	  PFWRF=`make $(MAKEOPTS) -s run-wrf REG=$$reg | grep "PROV_ID_WRF_"`;\
 	  reg=d03;\
-	  PFWRF=`make $(MAKEOPTS) -s run-wrf REG=d02 | grep "PROV_ID_WRF_"`;\
-	  PFWPS=`make $(MAKEOPTS) -s run-wps REG=d03 | grep "PROV_ID_"`;\
+	  PFWPS=`make $(MAKEOPTS) -s run-wps REG=$$reg | grep "PROV_ID_"`;\
 	  PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
 	  PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
 	fi;\
