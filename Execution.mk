@@ -8,15 +8,6 @@ USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 
 
-mock::
-	make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
-	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
-	  "./prepare.sh $(RSTARTDT) 1 0 $$d01 $$d02 $$d03 "\
-	  "$(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 && "\
-	  "sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && "\
-	  "cd .. && echo done;";\
-
-
 run-wps-anew::
 	### Run WPS  ###
 	#usage run-wps RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHoursi REG<d01|d02>
@@ -25,22 +16,27 @@ run-wps-anew::
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	if make -f sc5_query.mk PROV_WPS_SEL_ &> cql_log; then\
-	  CRES=`make -f sc5_query.mk PROV_WPS_SEL_ | tail -n1 | grep 1`;\
+	if make -f sc5_query.mk PROV_SEL_ TYPE=wps &> cql_log; then\
+	  CRES=`make -f sc5_query.mk PROV_SEL_ TYPE=wps | tail -n1 | grep 1`;\
 	else\
 	  echo "Progress: Error in CQL command, check cql_log file";\
 	  exit 1;\
 	fi;\
 	if [ "$$CRES" = "" ];then\
 	  CUUID=`uuidgen`;\
-	  if make -f sc5_query.mk PROV_WPS_INS_ \
+	  if make -f sc5_query.mk PROV_INS_ TYPE=wps\
 	     CUUID=$$CUUID &> cql_log; then\
-	    echo "Progress: Starting remote WPS";\
+	    echo "Progress: All OK from Cassandra to Start WPS Process";\
 	  else\
 	    echo "Progress: Error in CQL command, check cql_log file";\
 	    exit 1;\
 	  fi;\
 	  echo "Progress: Start of [Remote] ]WPS session on WRF Server";\
+	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
+	  "./prepare.sh $(RSTARTDT) 1 0 $$d01 $$d02 $$d03 "\
+	  "$(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 && "\
+	  "sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && "\
+	  "cd .. && echo done;";\
 	  echo "Progress: End of [Remote] WPS session on WRF Server";\
 	  tmpdirwps=`mktemp -d`;\
 	  echo "Progress: Copying WPS files from [Remote] WRF Server";\
@@ -52,8 +48,9 @@ run-wps-anew::
 	    ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
 	    ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
 	    ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
+	    make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
 	    ipaths="'"`basename $$f`"',"$$ipaths;\
-	  done;echo $$ipaths;\
+	  done;ipaths=`echo $${ipaths::-1}`;\
 	  rm -rf $$tmpdirwps &&\
 	  ALISTI=`make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=select`;\
 	  make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=delete &&\
@@ -61,10 +58,96 @@ run-wps-anew::
 	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
 	  AL=`echo $$ALISTI |sed 's|(|_pb_|g;s|)|_pe_|g'`;echo "$$AL";\
 	  make -f sc5_query.mk PROV_UPD_ \
-	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log;\
+	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log &&\
+	  echo "PROV_ID_WPS_ "$$CUUID;\
 	  else\
-	    make -f sc5_query.mk PROV_WPS_SEL_;\
-	  fi;
+	    CPAR=`make -s -f sc5_query.mk PROV_SEL_ TYPE=wps | tail -n3 |head -n1 |sed 's| ||g'`;\
+	    echo "PROV_ID_WPS_ "$$CPAR;\
+	    nclist=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | tr -d "',{,}"|sed 's|\r||g'` ;\
+	  tmpdirwps=`mktemp -d`;\
+	  for ncf in $$nclist; do\
+	    echo $$ncf;\
+	    ncfo=$$tmpdirwps"/"$$ncf;\
+	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	    ncrename -O -d .z_dimension0003,z-dimension0003 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0012,z-dimension0012 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0016,z-dimension0016 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0024,z-dimension0024 $$ncfo $$ncfo;\
+	  done;\
+	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WPS/ ; if [ ! -d RunData ]; then cp -r RunData_init RunData; mkdir -p RunData/met2; mkdir -p RunData/met3; fi;" &&\
+	  echo "Progress: Copying WPS files to [Remote] WRF Server";\
+	  scp $$tmpdirwps/met_em.$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/ &&\
+	  echo "Progress: Copying WPS files to [Remote] WRF Server OK!";\
+	  rm -rf $$tmpdirwps;\
+	fi;\
+	make $(MAKEOPTS) run-ssh-cp;
+
+run-wrf-anew::
+	d01=0; d02=0; d03=0; reg=$(REG);\
+	if [ "$(REG)" = d01 ]; then d01=1; fi;\
+	if [ "$(REG)" = d02 ]; then d02=1; fi;\
+	if [ "$(REG)" = d03 ]; then d03=1; fi;\
+	CURRUUID=`cat $(CUSER)_curr.UUID`;\
+	PF=`make $(MAKEOPTS) -s run-wps-anew | grep "PROV_ID_WPS_"`;\
+	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
+	if make -f sc5_query.mk PROV_SEL_ TYPE=wrf &> cql_log; then\
+	  CRES=`make -f sc5_query.mk PROV_SEL_ TYPE=wrf | tail -n1 | grep 1`;\
+	else\
+	  echo "Progress: Error in CQL command, check cql_log file";\
+	  exit 1;\
+	fi;\
+	if [ "$$CRES" = "" ];then\
+	  CUUID=`uuidgen`;\
+	  if make -f sc5_query.mk PROV_INS_ TYPE=wrf\
+	     CUUID=$$CUUID &> cql_log; then\
+	    echo "Progress: All OK from Cassandra to Start WRF Process";\
+	  else\
+	    echo "Progress: Error in CQL command, check cql_log file";\
+	    exit 1;\
+	  fi;\
+	  echo "Progress: Start of [Remote] ]WRF session on WRF Server";\
+	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/bin && "\
+	  "./prepare.sh $(RSTARTDT) 0 1 $$d01 $$d02 $$d03 "\
+	  "$(RDURATION) $(RDURATION) $(RDURATION) 0 0 0 && "\
+	  "sed -i '13s|bde2020user1|$$CURRUUID|' fws.sh && nohup ./fws.sh && "\
+	  "cd .. && echo done;";\
+	  echo "Progress: End of [Remote] WRF session on WRF Server";\
+	  tmpdirwrf=`mktemp -d`;\
+	  echo "Progress: Copying WRF files from [Remote] WRF Server";\
+	  scp $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/wrfout_d01* $$tmpdirwrf/;\
+	  echo "Progress: Copying WPS files from [Remote] WRF Server OK!";\
+	  ipaths="";\
+	  for f in $$tmpdirwrf/wrfout_d01*; do \
+	    ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
+	    mv $$f $$ftc;\
+	    make $(MAKEOPTS) ingest-file NETCDFFILE=$$ftc NETCDF_DATA_DIR=$$tmpdirwrf;\
+	    ipaths="'"`basename $$ftc`"',"$$ipaths;\
+	  done;ipaths=`echo $${ipaths::-1}`;\
+	  rm -rf $$tmpdirwrf &&\
+	  ALISTI=`make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=select`;\
+	  make -f sc5_query.mk PROV_OPER_DOWN_ CUUID=$$CUUID OPER=delete &&\
+	  ALISTI=`echo $$ALISTI|sed 's|.*\[||;s|].*||;s|000+0000||g;s|issuccessful: False|issuccessful: True|' `;\
+	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
+	  AL=`echo $$ALISTI |sed 's|(|_pb_|g;s|)|_pe_|g'`;echo "$$AL";\
+	  make -f sc5_query.mk PROV_UPD_ \
+	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log &&\
+	  echo "PROV_ID_WRF_ "$$CUUID;\
+	else\
+	  CPAR=`make -s -f sc5_query.mk PROV_SEL_ TYPE=wrf | tail -n3 |head -n1 |sed 's| ||g'`;\
+	  echo "PROV_ID_WRF_ "$$CPAR;\
+	  nclist=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | tr -d "',{,}"|sed 's|\r||g'` ;\
+	  tmpdirwrf=`mktemp -d`;\
+	  for ncf in $$nclist; do\
+	    echo $$ncf;\
+	    ncfo=$$tmpdirwrf"/"$$ncf;\
+	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	  done;\
+	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
+	  echo "Progress: Copying WRF files to [Remote] WRF Server";\
+	  scp $$tmpdirwps//wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/ &&\
+	  echo "Progress: Copying WRF files to [Remote] WRF Server OK!";\
+	  rm -rf $$tmpdirwrf;\
+	fi;
 
 run-wps::
 	### Run WPS  ###
@@ -109,17 +192,19 @@ run-wps::
 	  CPAR=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e " select id from testprov.prov where isvalid=True and user='$$CURRUUID' and paramset contains 'wps:1' and paramset contains 'sst:$(RSTARTDT)' and paramset contains 'd01:$$d01' and paramset contains 'd02:$$d02' and paramset contains 'd03:$$d03' and paramset contains 'd01rd:$(RDURATION)' and paramset contains 'd02rd:$(RDURATION)' and paramset contains 'd03rd:$(RDURATION)' and paramset contains 'd01k:$$d01' and paramset contains 'd02k:$$d02' and paramset contains 'd03k:$$d03' limit 1 allow filtering"| tail -n3 |head -n1 |sed 's| ||g'` ;\
 	  echo "PROV_ID_WPS_ "$$CPAR;\
 	  nclist=`/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "select paths from testprov.prov where id=$$CPAR" | head -n4 | tail -n1 | tr -d "',{,}"|sed 's|\r||g'` ;\
+	  tmpdirwps=`mktemp -d`;\
 	  for ncf in $$nclist; do\
 	    echo $$ncf;\
-	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncf ;\
-	    ncrename -O -d .z_dimension0003,z-dimension0003 $$ncf $$ncf;\
-	    ncrename -O -d .z_dimension0012,z-dimension0012 $$ncf $$ncf;\
-	    ncrename -O -d .z_dimension0016,z-dimension0016 $$ncf $$ncf;\
-	    ncrename -O -d .z_dimension0024,z-dimension0024 $$ncf $$ncf;\
+	    ncfo=$$tmpdirwps"/"$$ncf;\
+	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	    ncrename -O -d .z_dimension0003,z-dimension0003 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0012,z-dimension0012 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0016,z-dimension0016 $$ncfo $$ncfo;\
+	    ncrename -O -d .z_dimension0024,z-dimension0024 $$ncfo $$ncfo;\
 	  done;\
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WPS/ ; if [ ! -d RunData ]; then cp -r RunData_init RunData; mkdir -p RunData/met2; mkdir -p RunData/met3; fi;" &&\
-	  scp ./met_em.$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/ ;\
-	  rm -f ./met_em.*;\
+	  scp $$tmpdirwps/met_em.$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WPS/RunData/ ;\
+	  rm -rf $$tmpdirwps;\
 	fi;\
 	make $(MAKEOPTS) run-ssh-cp;
 
