@@ -88,7 +88,8 @@ run-wrf-anew::
 	if [ "$(REG)" = d02 ]; then d02=1; fi;\
 	if [ "$(REG)" = d03 ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	PF=`make $(MAKEOPTS) -s run-wps-anew | grep "PROV_ID_WPS_"`;\
+	make $(MAKEOPTS) -s run-wps-anew | tee CURRUUID_log &&\
+	PF=`cat CURRUUID_log | grep "PROV_ID_WPS_"`;\
 	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
 	if make -f sc5_query.mk PROV_SEL_ TYPE=wrf &> cql_log; then\
 	  CRES=`make -f sc5_query.mk PROV_SEL_ TYPE=wrf | tail -n1 | grep 1`;\
@@ -144,7 +145,7 @@ run-wrf-anew::
 	  done;\
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
 	  echo "Progress: Copying WRF files to [Remote] WRF Server";\
-	  scp $$tmpdirwps//wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/ &&\
+	  scp $$tmpdirwrf/wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/ &&\
 	  echo "Progress: Copying WRF files to [Remote] WRF Server OK!";\
 	  rm -rf $$tmpdirwrf;\
 	fi;
