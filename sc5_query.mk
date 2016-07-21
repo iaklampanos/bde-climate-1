@@ -28,7 +28,16 @@ PROV_INS_::
         if [ "$(REG)" = "d01" ]; then d01=1; fi;\
         if [ "$(REG)" = "d02" ]; then d02=1; fi;\
         if [ "$(REG)" = "d03" ]; then d03=1; fi;\
-	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($(CUUID), '$(CUSER)', False, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:$$wpsf','wrf:$$wrff','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, '$(TYPE)',[{agentname: 'wps', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))";
+	if [ "$(REG)" = "d01d02" ]; then d02=12; fi;\
+        if [ "$(REG)" = "d02d03" ]; then d03=12; fi;\
+	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, paths, paramset, type, parentid, bparentid, downscaling, createdat, lasteditedat) VALUES ($(CUUID), '$(CUSER)', False, {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:$$wpsf','wrf:$$wrff','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, '$(TYPE)', $(PWRFID), $(BPWRFID), [{agentname: '$(TYPE)', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))";
+
+PROV_INS_NEST_::
+	d01=0;d02=0;d03=0;reg=$(REG);\
+	if [ "$(REG)" = "d01d02" ]; then d02=12; fi;\
+        if [ "$(REG)" = "d02d03" ]; then d03=12; fi;\
+	/usr/bin/docker exec -i bdeclimate1_cassandra_1 cqlsh -e "INSERT INTO testprov.prov (id, user, isvalid, parentid, bparentid, paths, paramset, type, downscaling, createdat, lasteditedat) VALUES ($(CUUID), '$(CUSER)', False, $(PWRFID), $(BPWRFID), {'/home/bde2020/data/BINARY/'}, {'sst:$(RSTARTDT)','wps:0','wrf:1','d01:$$d01','d02:$$d02','d03:$$d03','d01rd:$(RDURATION)','d02rd:$(RDURATION)','d03rd:$(RDURATION)','d01k:$$d01','d02k:$$d02','d03k:$$d03'}, 'wrf',[{agentname: 'wrf', agenttype:'software', agentversion:'0.0.1', st:toTimestamp(now()), et:toTimestamp(now()), params:{'d01':'$$d01','d02':'$$d02','d03':'$$d03'}, issuccessful:False}], toTimestamp(now()), toTimestamp(now()))";
+
 
 
 PROV_UPD_::

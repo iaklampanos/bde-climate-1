@@ -47,6 +47,12 @@ init-hadoop-hive::
 	#$(GIT) clone https://github.com/big-data-europe/docker-hadoop $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop
 	#$(GIT) clone https://github.com/big-data-europe/docker-hive $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive
 
+compose-hadoop-hive-non::
+	###Executing hadoop, hive compose
+	cd $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop && $(DOCKERCOMPOSE) up -d
+	cd $(DOCKERCOMPOSE_BUILD_DIR)/docker-hive && $(DOCKERCOMPOSE) up -d
+
+
 compose-hadoop-hive:: init-hadoop-hive
 	###Executing hadoop, hive compose
 	cd $(DOCKERCOMPOSE_BUILD_DIR)/docker-hadoop && $(DOCKERCOMPOSE) up -d
