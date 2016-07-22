@@ -6,7 +6,7 @@ services:
     ports:
     - "2222:22"
     volumes:
-    - /home/stathis/Downloads/:/var/lib/cassandra
+    - /mnt/share500/cass_data/:/var/lib/cassandra
     - logvolume01:/var/log
     links:
     - cassandra

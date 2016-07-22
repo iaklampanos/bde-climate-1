@@ -6,6 +6,12 @@ RSTARTDT=20070103
 RDURATION=6
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
+LOGS_DIR=/mnt/share500/logs/
+
+help::
+	#help goes here###
+	echo "help goes here";
+
 
 
 run-wps::
@@ -16,21 +22,22 @@ run-wps::
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
+	echo "Progress: Starting WPS Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
 	if make -f sc5_query.mk PROV_SEL_ \
-	  TYPE=wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> cql_log; then\
+	  TYPE=wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	  CRES=`make -f sc5_query.mk PROV_SEL_ \
 	  TYPE=wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tail -n1 | grep 1`;\
 	else\
-	  echo "Progress: Error in CQL command, check cql_log file";\
+	  echo "Progress: Error in CQL command, check $(LOGS_DIR)cql_log file";\
 	  exit 1;\
 	fi;\
 	if [ "$$CRES" = "" ];then\
 	  CUUID=`uuidgen`;\
 	  if make -f sc5_query.mk PROV_INS_ TYPE=wps PWRFID=null BPWRFID=null\
-	     REG=$(REG) CUUID=$$CUUID CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> cql_log; then\
+	     REG=$(REG) CUUID=$$CUUID CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	    echo "Progress: All OK from Cassandra to Start WPS Process";\
 	  else\
-	    echo "Progress: Error in CQL command, check cql_log file";\
+	    echo "Progress: Error in CQL command, check $(LOGS_DIR)cql_log file";\
 	    exit 1;\
 	  fi;\
 	  echo "Progress: Start of [Remote] ]WPS session on WRF Server";\
@@ -50,7 +57,10 @@ run-wps::
 	    ncrename -O -d z-dimension0012,z_dimension0012 $$f $$f;\
 	    ncrename -O -d z-dimension0016,z_dimension0016 $$f $$f;\
 	    ncrename -O -d z-dimension0024,z_dimension0024 $$f $$f;\
+	    start=`date +%s`;\
 	    make  $(MAKEOPTS) ingest-file NETCDFFILE=$$f ;\
+	    end=`date +%s`;\
+            echo "Progress: ingestion took: "$$((end-start))" seconds";\
 	    ipaths="'"`basename $$f`"',"$$ipaths;\
 	  done;ipaths=`echo $${ipaths::-1}`;\
 	  rm -rf $$tmpdirwps &&\
@@ -60,7 +70,7 @@ run-wps::
 	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
 	  AL=`echo $$ALISTI |sed 's|(|_pb_|g;s|)|_pe_|g'`;\
 	  make -f sc5_query.mk PROV_UPD_ \
-	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log &&\
+	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> $(LOGS_DIR)cql_log &&\
 	  echo "PROV_ID_WPS_ "$$CUUID;\
 	  else\
 	    CPAR=`make -s -f sc5_query.mk PROV_SEL_ \
@@ -71,7 +81,10 @@ run-wps::
 	  for ncf in $$nclist; do\
 	    echo $$ncf;\
 	    ncfo=$$tmpdirwps"/"$$ncf;\
+	    start=`date +%s`;\
 	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	    end=`date +%s`;\
+            echo "Progress: export took: "$$((end-start))" seconds";\
 	    ncrename -O -d .z_dimension0003,z-dimension0003 $$ncfo $$ncfo;\
 	    ncrename -O -d .z_dimension0012,z-dimension0012 $$ncfo $$ncfo;\
 	    ncrename -O -d .z_dimension0016,z-dimension0016 $$ncfo $$ncfo;\
@@ -83,7 +96,8 @@ run-wps::
 	  echo "Progress: Copying WPS files to [Remote] WRF Server OK!";\
 	  rm -rf $$tmpdirwps;\
 	fi;\
-	make $(MAKEOPTS) run-ssh-cp;
+	make $(MAKEOPTS) run-ssh-cp;\
+	echo "Progress: Ended WPS Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";
 
 
 run-wrf::
@@ -92,24 +106,28 @@ run-wrf::
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	make $(MAKEOPTS) -s run-wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $$CURRUUID"_log" &&\
-	PF=`cat CURRUUID_log | grep "PROV_ID_WPS_"`;\
+	echo "Progress: Starting WRF Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
+	start=`date +%s`;\
+	make $(MAKEOPTS) -s run-wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
+	end=`date +%s`;\
+	echo "Progress: WPS RUN took: "$$((end-start))" seconds";\
+	PF=`cat $(LOGS_DIR)$$CURRUUID"_log" | grep "PROV_ID_WPS_"`;\
 	PFI=`echo $$PF | awk -F " " '{print $$2}'`;\
 	if make -f sc5_query.mk PROV_SEL_ TYPE=wrf \
-	  CUUID=$$CUUID REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> cql_log; then\
+	  REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	  CRES=`make -f sc5_query.mk PROV_SEL_ \
 	  TYPE=wrf REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tail -n1 | grep 1`;\
 	else\
-	  echo "Progress: Error in CQL command, check cql_log file";\
+	  echo "Progress: Error in CQL command, check $(LOGS_DIR)cql_log file";\
 	  exit 1;\
 	fi;\
 	if [ "$$CRES" = "" ];then\
 	  CUUID=`uuidgen`;\
 	  if make -f sc5_query.mk PROV_INS_ TYPE=wrf BPWRFID=$$PFI PWRFID=null\
-	    CUUID=$$CUUID REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> cql_log; then\
+	    CUUID=$$CUUID REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	    echo "Progress: All OK from Cassandra to Start WRF Process";\
 	  else\
-	    echo "Progress: Error in CQL command, check cql_log file";\
+	    echo "Progress: Error in CQL command, check $(LOGS_DIR)cql_log file";\
 	    exit 1;\
 	  fi;\
 	  echo "Progress: Start of [Remote] ]WRF session on WRF Server";\
@@ -127,7 +145,10 @@ run-wrf::
 	  for f in $$tmpdirwrf/wrfout_d01*; do \
 	    ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	    mv $$f $$ftc;\
+	    start=`date +%s`;\
 	    make $(MAKEOPTS) ingest-file NETCDFFILE=$$ftc NETCDF_DATA_DIR=$$tmpdirwrf;\
+	    end=`date +%s`;\
+	    echo "Progress: WRF ingestion took: "$$((end-start))" seconds";\
 	    ipaths="'"`basename $$ftc`"',"$$ipaths;\
 	  done;ipaths=`echo $${ipaths::-1}`;\
 	  rm -rf $$tmpdirwrf &&\
@@ -137,7 +158,7 @@ run-wrf::
 	  ALISTI=`echo $$ALISTI| sed "s|et: '\([^']*\)'|et:toTimestamp(now())|"`;\
 	  AL=`echo $$ALISTI |sed 's|(|_pb_|g;s|)|_pe_|g'`;echo "$$AL";\
 	  make -f sc5_query.mk PROV_UPD_ \
-	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> cql_log &&\
+	  ipaths="\"$$ipaths\"" CUUID=$$CUUID ALISTI="\"$$AL\"" &> $(LOGS_DIR)cql_log &&\
 	  echo "PROV_ID_WRF_ "$$CUUID;\
 	else\
 	  CPAR=`make -s -f sc5_query.mk PROV_SEL_ \
@@ -148,14 +169,18 @@ run-wrf::
 	  for ncf in $$nclist; do\
 	    echo $$ncf;\
 	    ncfo=$$tmpdirwrf"/"$$ncf;\
+	    start=`date +%s`;\
 	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	    end=`date +%s`;\
+	    echo "Progress: WRF export took: "$$((end-start))" seconds";\
 	  done;\
 	  ssh $(USERNAM)@$(MODELSRV) "cd $$CURRUUID/Run/WRF/ && if [ ! -d run_$${reg^^} ]; then echo 'run_$${reg^^} does not exist!'; cp -r run_init_$${reg^^} run_$${reg^^};fi;";\
 	  echo "Progress: Copying WRF files to [Remote] WRF Server";\
 	  scp $$tmpdirwrf/wrfout_$(REG)* $(USERNAM)@$(MODELSRV):~/$$CURRUUID/Run/WRF/run_$${reg^^}/ &&\
 	  echo "Progress: Copying WRF files to [Remote] WRF Server OK!";\
 	  rm -rf $$tmpdirwrf;\
-	fi;
+	fi;\
+	echo "Progress: Ended WRF Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";
 
 
 
@@ -175,30 +200,43 @@ run-wrf-nest::
 	#usage run-wrf-nest RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours REG=<d01d02|d02d03>
 	d01=0; d02=0; d03=0; reg=$(REG);\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
+	echo "Progress: Starting WRF NESTDOWN Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
 	if [ "$(REG)" = d01d02 ];then \
 	  d02=12;\
 	  reg=d01;\
-	  make $(MAKEOPTS) -s run-wrf REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT)| tee $$CURRUUID"_log" &&\
-	  PFWRF=`cat CURRUUID_log | grep "PROV_ID_WRF_"`;\
+	  start=`date +%s`;\
+	  make $(MAKEOPTS) -s run-wrf REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
+	  end=`date +%s`;\
+	  echo "Progress: WRF Process took: "$$((end-start))" seconds";\
+	  PFWRF=`cat $(LOGS_DIR)$$CURRUUID"_log" | grep "PROV_ID_WRF_"`;\
 	  reg=d02;\
-	  make $(MAKEOPTS) -s run-wps REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT)| tee $$CURRUUID"_log" &&\
-	  PFWPS=`cat CURRUUID_log | grep "PROV_ID_WPS_"`;\
+	  start=`date +%s`;\
+	  make $(MAKEOPTS) -s run-wps REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
+	  end=`date +%s`;\
+	  echo "Progress: WPS Process took: "$$((end-start))" seconds";\
+	  PFWPS=`cat $(LOGS_DIR)$$CURRUUID"_log" | grep "PROV_ID_WPS_"`;\
 	  PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
 	  PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
 	fi;\
 	if [ "$(REG)" = d02d03 ];then \
 	  d03=12;\
 	  reg=d02;\
-	  make $(MAKEOPTS) -s run-wrf REG=$$reg | tee $$CURRUUID"_log" &&\
-	  PFWRF=`cat CURRUUID_log | grep "PROV_ID_WRF_"`;\
+	  start=`date +%s`;\
+	  make $(MAKEOPTS) -s run-wrf REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
+	  end=`date +%s`;\
+	  echo "Progress: WRF Process took: "$$((end-start))" seconds";\
+	  PFWRF=`cat $(LOGS_DIR)$$CURRUUID"_log" | grep "PROV_ID_WRF_"`;\
 	  reg=d03;\
-	  make $(MAKEOPTS) -s run-wps REG=$$reg | tee $$CURRUUID"_log" &&\
-	  PFWPS=`cat CURRUUID_log | grep "PROV_ID_WPS_"`;\
+	  start=`date +%s`;\
+	  make $(MAKEOPTS) -s run-wps REG=$$reg CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
+	  end=`date +%s`;\
+	  echo "Progress: WPS Process took: "$$((end-start))" seconds";\
+	  PFWPS=`cat $(LOGS_DIR)$$CURRUUID"_log" | grep "PROV_ID_WPS_"`;\
 	  PFWRFI=`echo $$PFWRF | awk -F " " '{print $$2}'`;\
 	  PFWPSI=`echo $$PFWPS | awk -F " " '{print $$2}'`;\
 	fi;\
 	if make -f sc5_query.mk PROV_SEL_NEST_ REG=$(REG) PWRFID=$$PFWRFI BPWRFID=$$PFWPSI \
-	  CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> cql_log; then\
+	  CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	  CRES=`make -f sc5_query.mk PROV_SEL_NEST_ REG=$(REG) PWRFID=$$PFWRFI BPWRFID=$$PFWPSI CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT)| tail -n1 | grep 1`;\
 	else\
 	  echo "Progress: Error in CQL command, check cql_log file";\
@@ -215,7 +253,10 @@ run-wrf-nest::
 	   for f in $$tmpdirwrf/wrfout_d01*; do \
 	     ftc=`echo $$f | sed 's|d01|$(REG)|g'`;\
 	     mv $$f $$ftc;\
+	     start=`date +%s`;\
 	     make $(MAKEOPTS) ingest-file NETCDFFILE=$$ftc NETCDF_DATA_DIR=$$tmpdirwrf;\
+	     end=`date +%s`;\
+	     echo "Progress: WRF Ingestion took: "$$((end-start))" seconds";\
 	    ipaths="'"`basename $$ftc`"',"$$ipaths;\
 	   done;ipaths=`echo $${ipaths::-1}`;\
 	  rm -rf $$tmpdirwrf &&\
@@ -234,7 +275,10 @@ run-wrf-nest::
 	  for ncf in $$nclist; do\
 	    echo $$ncf;\
 	    ncfo=$$tmpdirwrf"/"$$ncf;\
+	    start=`date +%s`;\
 	    make $(MAKEOPTS) export-file NETCDFKEY=$$ncf NETCDFOUT=$$ncfo;\
+	    end=`date +%s`;\
+	    echo "Progress: WRF Export took: "$$((end-start))" seconds";\
 	    ftc=`echo $$ncfo | sed 's|$(REG)|d01|g'`;\
 	    mv $$ncfo $$ftc;\
 	  done;\
@@ -244,9 +288,10 @@ run-wrf-nest::
 	  echo "Progress: Copying WRF files to [Remote] WRF Server OK!";\
 	  rm -rf $$tmpdirwrf;\
 	fi;
+	echo "Progress: Ended WRF NESTDOWN Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";
 
 
-run-wrf-old::
+run-wrf-deprec::
 	d01=0; d02=0; d03=0; reg=$(REG);\
 	if [ "$(REG)" = d01 ]; then d01=1; fi;\
 	if [ "$(REG)" = d02 ]; then d02=1; fi;\
@@ -294,7 +339,7 @@ run-wrf-old::
 
 
 
-run-wps-old::
+run-wps-deprec::
 	### Run WPS  ###
 	#usage run-wps RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours
 	d01=0;d02=0;d03=0;reg=$(REG);\
