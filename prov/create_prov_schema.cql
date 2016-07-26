@@ -1,10 +1,7 @@
 CREATE KEYSPACE IF NOT EXISTS testprov WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};
 
-DROP TABLE IF EXISTS prov;
-DROP TYPE IF EXISTS agentproc;
 
-
-CREATE TYPE testprov.agentproc (
+CREATE TYPE IF NOT EXISTS testprov.agentproc (
 	agentname VARCHAR,
 	agenttype VARCHAR, -- currently only have software agents
 	agentversion VARCHAR,
@@ -15,7 +12,7 @@ CREATE TYPE testprov.agentproc (
 	issuccessful boolean
 );
 
-CREATE TABLE testprov.prov (
+CREATE TABLE IF NOT EXISTS testprov.prov (
 	id UUID,
 	isvalid boolean,
 	user TEXT,
@@ -31,6 +28,7 @@ CREATE TABLE testprov.prov (
 	lasteditedat timestamp,
 	PRIMARY KEY (id)
 );
+
 CREATE INDEX IF NOT EXISTS prov_paramset ON testprov.prov(paramset);
 CREATE INDEX IF NOT EXISTS prov_paths ON testprov.prov(paths);
 CREATE INDEX IF NOT EXISTS prov_valid ON testprov.prov(isvalid);
