@@ -26,6 +26,7 @@ CLUSTER_IP = 'athina'
 CLUSTER_DATA_DIR = '/home/stathis/Downloads'
 CLUSTER_BUILD_DIR = '/home/stathis/Develop'
 
+
 def get_stamp(msg=''):
     return msg + ' ' + str(datetime.now())
 
@@ -45,7 +46,7 @@ def run_shell_command(s):
         sys.stdout.flush()
         cp = subprocess.Popen(c[i], stdout=cout, stdin=cin, shell=True)
 
-    cp.wait() 
+    cp.wait()
 
 def run_shell_command(s):
     subprocess.call(s)
@@ -59,12 +60,12 @@ def _create_user_structure():
     
 def updateIngestHTML(x):
     global txarea
-    txarea.value += x
+    txarea.value += x.strip() + '<br/>'
 
 def ingest(filename):
     ''' make ingest-file NETCDFFILE=yourfilewithfullpath '''
     txarea.value += get_stamp('Starting ingest') + '\n'
-    s = execu(ingest_command(netcdffile=filename), pattern=None, fn=updateIngestHTML)
+    s = execu(ingest_command(netcdffile=filename), pattern='Importing', fn=updateIngestHTML)
     txarea.value += get_stamp('Finished ingest')
 
 def execu(command, pattern=None, fn=sys.stdout.write):
@@ -90,7 +91,7 @@ def ingest_command(clusteruser=CLUSTER_USER,
                    netcdffile='somefile'):
     curr_user = os.environ['USER']
     sti0 = 'scp ./__FILE__ __UNAME__@__HOST__:__BUILD_DIR__/bde-climate-1'
-    sti1 = 'ssh __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s ingest-file-withprov NETCDFFILE=__FILE__ CUSER=__CUSER__"'
+    sti1 = 'ssh __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s ingest-file-withprov NETCDFFILE=__FILE__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti0 + ' && ' + sti1
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
@@ -107,12 +108,14 @@ def prov_command(clusteruser=CLUSTER_USER,
                  clim1_bd=CLUSTER_BUILD_DIR,
                  netcdfkey='somekey'):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s  get-prov DATASET=__KEY__"'
+    curr_user = os.environ['USER']
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s  get-prov DATASET=__KEY__ | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
     sti = sti.replace('__BUILD_DIR__', clim1_bd)
     sti = sti.replace('__KEY__', netcdfkey)
+    sti = sti.replace('__CUSER__', curr_user)
     return sti   
 
 def export_command(clusteruser=CLUSTER_USER,
@@ -121,8 +124,9 @@ def export_command(clusteruser=CLUSTER_USER,
                    clim1_bd=CLUSTER_BUILD_DIR,
                    netcdfkey='somekey'):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
+    curr_user = os.environ['USER']
     sti0 = 'echo "Retrieving __FILE__..." && scp __UNAME__@__HOST__:__BUILD_DIR__/bde-climate-1/__FILE__ .'
-    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file NETCDFKEY=__KEY__ NETCDFOUT=__FILE__"'
+    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file NETCDFKEY=__KEY__ NETCDFOUT=__FILE__ | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti1 + ' && ' + sti0
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
@@ -130,6 +134,7 @@ def export_command(clusteruser=CLUSTER_USER,
     sti = sti.replace('__BUILD_DIR__', clim1_bd)
     sti = sti.replace('__KEY__', netcdfkey)
     sti = sti.replace('__FILE__', 'exp_' + netcdfkey)
+    sti = sti.replace('__CUSER__', curr_user)
     return sti
 
 def datakeys_command(clusteruser=CLUSTER_USER,
@@ -137,11 +142,13 @@ def datakeys_command(clusteruser=CLUSTER_USER,
                      clim1_dd=CLUSTER_DATA_DIR,
                      clim1_bd=CLUSTER_BUILD_DIR):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s cassandra-get-datasets"'
+    curr_user = os.environ['USER']
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s cassandra-get-datasets | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
     sti = sti.replace('__BUILD_DIR__', clim1_bd)
+    sti = sti.replace('__CUSER__', curr_user)
     return sti
 
 global ncfiles
@@ -156,7 +163,13 @@ def netcdf_files():
     execu('ls *.nc', fn=filestolist)
     return ncfiles[:-1]
 
-
+def netcdf_global_files():
+    #global gncfiles
+    #gncfiles = []
+    ncfiles = []
+    execu('ls *.nc | grep -E -v "wrf|met"', fn=filestolist)
+    return ncfiles[:-1]
+    
 global dataset_keys
 dataset_keys = []
 def populate_cassandra_keys_list(l):
@@ -176,7 +189,109 @@ def export_clicked(b):
     tx_export.value += get_stamp('Starting export') + '<br/>'
     execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML)
     tx_export.value += get_stamp('Finished export')
+
+from netCDF4 import Dataset
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+
+def extract_var(name):
+    toks = name.split('_')
+    for t in toks:
+        if t != 'exp':
+            return t
+        continue
+    return None
+
+def plot_clicked(b):
+    global tx_plot
+    global dd_plot
+
+    # tx_plot.value += 'Plot clicked<br/>'
+    # tx_plot.value = '<script>$(".output").remove()</script>'
+    my_example_nc_file = dd_plot.value
+
+    fh = Dataset(my_example_nc_file, mode='r')
+
+    var = extract_var(my_example_nc_file)
+    if var == None:
+        tx_plot.value += 'Unknown error <br/>'
+        return
     
+    # tx_plot.value += var + '<br/>'
+    
+    lons = fh.variables['lon'][:]
+    lats = fh.variables['lat'][:]
+    time = fh.variables['time'][:]
+    rsdscs = fh.variables[var][:]
+
+    #print(rsdscs.shape)
+    #print(rsdscs[0].shape)
+    rsdscs_units = fh.variables[var].units
+    fh.close()
+
+    lon_0 = lons.mean()
+    lat_0 = lats.mean()
+
+    m = Basemap(width=50000000,height=35000000,
+                resolution='l',projection='cyl',\
+                lat_ts=40,lat_0=lat_0,lon_0=lon_0)
+    lon, lat = np.meshgrid(lons, lats)
+    xi, yi = m(lon, lat)
+
+    #Add Size
+    fig = plt.figure(figsize=(16,16))
+
+    # Plot Data
+    cs = m.pcolor(xi,yi,np.squeeze(rsdscs[0]))
+
+    # Add Grid Lines
+    m.drawparallels(np.arange(-80., 81., 20.), labels=[1,0,0,0], fontsize=10)
+    m.drawmeridians(np.arange(-180., 181., 20.), labels=[0,0,0,1], fontsize=10)
+
+    # Add Coastlines, States, and Country Boundaries
+    m.drawcoastlines()
+    m.drawstates()
+    m.drawcountries()
+
+    # Add Colorbar
+    cbar = m.colorbar(cs, location='bottom', pad="10%")
+    cbar.set_label(rsdscs_units)
+
+    # Add Title
+    # plt.title('Surface Downwelling Clear-Sky Shortwave Radiation')
+
+    #myplot.show()
+    
+    
+def display_plot_form():
+    global dd_plot
+    global dd_vars_plot
+    global bt_plot
+    global tx_plot
+    global ncfiles
+    
+    netcdf_global_files()
+    
+    dd_plot = widgets.Dropdown(
+        options=ncfiles,
+        description='Available keys:'
+    )
+    #dd_vars_plot = widgets.Dropdown(
+    #    options=['var1','var2'],
+    #    description='Vars:'
+    #)
+    bt_plot = widgets.Button(description='Plot')
+    bt_plot.on_click(plot_clicked)
+    tx_plot = widgets.HTML()
+
+    container = widgets.HBox(children=[dd_plot])
+    container2 = widgets.HBox(children=[bt_plot])
+
+    display(container)
+    display(container2)
+    display(tx_plot)
+
 def display_export_form():
     # Find available datasets/keys
     # Display dropdown list
@@ -204,11 +319,19 @@ def display_export_form():
     display(container)
     display(tx_export)
 
+import traceback
 def update_prov(l):
     global provlist
+    global html_prov
+    
     l = l.strip()
     if l == '': return
-    provlist.append(json.loads(l))
+    try:
+        provlist.append(json.loads(l))
+    except ValueError:
+        traceback.print_exc(file=sys.stdout)
+        print l
+        html_prov.value += 'Unknown error occurred...'
 
 import matplotlib.image as mpimg
 
@@ -222,6 +345,7 @@ def prov_clicked(b):
     global provlist
     global html_prov
 
+    html_prov.value = ''
     html_prov.value = 'Drawing data lineage... <br/>' + html_prov.value
     provlist = []
     execu(prov_command(netcdfkey=dd_prov.value), fn=update_prov)
@@ -267,14 +391,91 @@ def wrf_clicked(b):
     else:
         pass
 
+    print get_stamp('Starting WRF')
     stdate = dd_st_wrf.value.replace('-', '')
     dur = dd_dur_wrf.value
     if reg == 'd01d02':
         #print 'run nesting'
-        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur))
+        print wrf_command_nest(region=reg, startdate=stdate, duration=dur)
+        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur), pattern='Progress')
     else:
-        execu(wrf_command(region=reg, startdate=stdate, duration=dur))
+        print wrf_command(region=reg, startdate=stdate, duration=dur)
+        execu(wrf_command(region=reg, startdate=stdate, duration=dur), pattern='Progress')
+    print get_stamp('Finishing WRF')
+
+def analytics_command(clusteruser=CLUSTER_USER,
+                      clusterip=CLUSTER_IP,
+                      clim1_dd=CLUSTER_DATA_DIR,
+                      clim1_bd=CLUSTER_BUILD_DIR,
+                      region ='d01',
+                      day = '07'):
+    # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
+    curr_user = os.environ['USER']
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s hive-query-daily-indx REG=__REGION__ DAY=__DAY__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
+    sti = sti.replace('__UNAME__', clusteruser)
+    sti = sti.replace( '__HOST__', clusterip)
+    sti = sti.replace('__DATA_DIR__', clim1_dd)
+    sti = sti.replace('__BUILD_DIR__', clim1_bd)
+    sti = sti.replace('__REGION__', region)
+    sti = sti.replace('__DAY__', day)
+    sti = sti.replace('__CUSER__', curr_user)
+    return sti
+
+def update_analytics_out(x):
+    global tx_an
+
+    if 'c0 |' in x:
+        toks = x.split('|')
+        mmax = toks[4]
+        mmin = toks[5]
+        tx_an.value = 'Max=' + str(mmax) + ', Min=' + str(mmin) + ' (K)<br/>'
+        
+def analytics_click(b):
+    global dd_days_an
+    global dd_region_an
+    global tx_an
+
+    tx_an.value = ''
+    reg = 'd02'
+    stdate = None
+    dur = None
+    if dd_region_an.value == 'Europe':
+        reg = 'd01'
+    elif dd_region_an.value == 'Greece':
+        reg = 'd02'
     
+    day = dd_days_an.value.split('-')[2]
+    execu(analytics_command(region=reg, day=day), fn=update_analytics_out)
+
+    if tx_an.value.strip() == '':
+        tx_an.value = 'Data not found'
+        
+def display_analytics_form():
+    global dd_days_an
+    global dd_region_an
+    global bt_an
+    global tx_an
+
+    dd_days_an = widgets.Dropdown(
+        options=['2016-07-01', '2016-07-03', '2016-07-07'],
+        value='2016-07-07',
+        description='Available days:'
+    )
+
+    dd_region_an = widgets.Dropdown(
+        options=['Europe', 'Greece'],
+        value='Greece',
+        description='Available regions:'
+    )
+
+    tx_an = widgets.HTML()
+
+    bt_an = widgets.Button(description='Calculate')
+    container = widgets.HBox(children=[dd_days_an, dd_region_an, bt_an])
+    bt_an.on_click(analytics_click)
+    display(container)
+    display(tx_an)
+        
 def display_wrf_form():
     global dd_reg_wrf
     global dd_st_wrf
@@ -303,10 +504,11 @@ def display_wrf_form():
     )
     bt_wrf = widgets.Button(description="Run WRF")
     tx_wrf = widgets.HTML()
-    container = widgets.HBox(children=[dd_reg_wrf, dd_st_wrf, dd_dur_wrf, bt_wrf])
+    container = widgets.HBox(children=[dd_reg_wrf, dd_st_wrf, dd_dur_wrf])
 
     bt_wrf.on_click(wrf_clicked)
     display(container)
+    display(bt_wrf)
     display(tx_wrf)
     
     
@@ -349,7 +551,7 @@ def display_ingest_form():
         description='Choose file:',
     )
     b = widgets.Button(description='Ingest')
-    txarea = widgets.Textarea(height=3)
+    txarea = widgets.HTML()
     container = widgets.HBox(children=[w, l, b])
 
     b.on_click(ingest_clicked)
@@ -357,6 +559,8 @@ def display_ingest_form():
     display(txarea)
     
 def ingest_clicked(b):
+    global txarea
+    txarea.value = ''
     ingest(filename=w.value)
     
 def export(filename):
@@ -373,7 +577,7 @@ def wrf_command(clusteruser=CLUSTER_USER,
                 duration = 6):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__"'
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
@@ -393,7 +597,7 @@ def wrf_command_nest(clusteruser=CLUSTER_USER,
                 duration = 6):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf-nest RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__"'
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf-nest RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
@@ -403,9 +607,6 @@ def wrf_command_nest(clusteruser=CLUSTER_USER,
     sti = sti.replace('__REGION__', region)
     sti = sti.replace('__CUSER__', curr_user)
     return sti
-
-
-
 
 def _run_wrf():
     '''make run-wrf RSTARTDT=StartDateOfModel RDURATION=DurationOfModelInHours REG=<d01|d02|d03> '''
@@ -420,12 +621,14 @@ def view_data(data=0):
     pass
 
 def hive_command(clusteruser='stathis', clusterip='172.17.20.106', clim1_bd='/home/stathis/Downloads', clim1_dd='/home/stathis/bde-climate-1', command='ls /home'):
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__ && docker exec -i hive __COMMND__"' 
+    curr_user = os.environ['USER']
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__ && docker exec -i hive __COMMND__ | tee -a /mnt/share500/logs/__CUSER__.log"' 
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
     sti = sti.replace('__BUILD_DIR__', clim1_bd)
     sti = sti.replace('__COMMND__', command)
+    sti = sti.replace('__CUSER__', curr_user)
     print(sti)
     return sti
 
