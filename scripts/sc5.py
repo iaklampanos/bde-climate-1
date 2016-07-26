@@ -2,7 +2,7 @@
 import os
 import sys
 import matplotlib
-
+import multiprocessing
 from ipywidgets import interact, interactive, fixed
 import ipywidgets as widgets
 from IPython.display import display
@@ -65,7 +65,7 @@ def updateIngestHTML(x):
 def ingest(filename):
     ''' make ingest-file NETCDFFILE=yourfilewithfullpath '''
     txarea.value += get_stamp('Starting ingest') + '\n'
-    s = execu(ingest_command(netcdffile=filename), pattern='Importing', fn=updateIngestHTML)
+    s = execu(ingest_command(netcdffile=filename), pattern='Progress: ', fn=updateIngestHTML)
     txarea.value += get_stamp('Finished ingest')
 
 def execu(command, pattern=None, fn=sys.stdout.write):
@@ -187,7 +187,10 @@ def update_export_HTML(x):
 
 def export_clicked(b):
     tx_export.value += get_stamp('Starting export') + '<br/>'
-    execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML)
+    #execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML, pattern='Progress: ')
+    d = multiprocessing.Process(name='export_netcdf', target=execu, args=(export_command(netcdfkey=dd_export.value), 'Progress: ', update_export_HTML,))
+    d.daemon = True
+    d.start()
     tx_export.value += get_stamp('Finished export')
 
 from netCDF4 import Dataset
@@ -397,10 +400,10 @@ def wrf_clicked(b):
     if reg == 'd01d02':
         #print 'run nesting'
         print wrf_command_nest(region=reg, startdate=stdate, duration=dur)
-        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur), pattern='Progress')
+        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur), pattern='Progress: ')
     else:
         print wrf_command(region=reg, startdate=stdate, duration=dur)
-        execu(wrf_command(region=reg, startdate=stdate, duration=dur), pattern='Progress')
+        execu(wrf_command(region=reg, startdate=stdate, duration=dur), pattern='Progress: ')
     print get_stamp('Finishing WRF')
 
 def analytics_command(clusteruser=CLUSTER_USER,
