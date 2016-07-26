@@ -5,7 +5,7 @@ import matplotlib
 import multiprocessing
 from ipywidgets import interact, interactive, fixed
 import ipywidgets as widgets
-from IPython.display import display
+import IPython
 
 import subprocess
 import sys
@@ -209,7 +209,8 @@ def extract_var(name):
 def plot_clicked(b):
     global tx_plot
     global dd_plot
-
+    IPython.display.clear_output()
+    #clear_output(wait=True)
     # tx_plot.value += 'Plot clicked<br/>'
     # tx_plot.value = '<script>$(".output").remove()</script>'
     my_example_nc_file = dd_plot.value
