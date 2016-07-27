@@ -7,6 +7,7 @@ RDURATION=6
 USERNAM=bde2020
 MODELSRV=tornado.ipta.demokritos.gr
 LOGS_DIR=/mnt/share500/logs/
+PROC=ing
 
 help::
 	#help goes here###
@@ -17,18 +18,32 @@ run-wrf-background::
 	if [ -f /mnt/share500/logs/$(CUSER).wrf.log ];then\
 	  wrfstatus=`cat /mnt/share500/logs/$(CUSER).wrf.log | grep "__FINISHED_WRF__"`;\
 	  if [ "$$wrfstatus" = "" ];then\
-	    echo "WRF RUNNING JOB ALREADY";\
+	    echo "Progress: WRF RUNNING JOB EXISTS";\
 	  else\
 	    cat /mnt/share500/logs/$(CUSER).wrf.log >> /mnt/share500/logs/$(CUSER).log;\
-	    nohup sh -c "echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__; | tee /mnt/share500/logs/$(CUSER).wrf.log" &;\
-	    echo $! > $(CUSER)_curr.wrf.pid;\
+	    nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__;" > /mnt/share500/logs/$(CUSER).wrf.log 2>&1 &\
+	    echo $$! > $(CUSER)_curr.wrf.pid;\
 	  fi;\
 	else\
-	  nohup sh -c "echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__; | tee /mnt/share500/logs/$(CUSER).wrf.log" &;\
-	  echo $! > $(CUSER)_curr.wrf.pid;\
+	  nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__;" > /mnt/share500/logs/$(CUSER).wrf.log 2>&1 &\
+	  echo $$! > $(CUSER)_curr.wrf.pid;\
 	fi; 
 	
-
+run-wrf-nest-background::
+	if [ -f /mnt/share500/logs/$(CUSER).wrf.log ];then\
+	  wrfstatus=`cat /mnt/share500/logs/$(CUSER).wrf.log | grep "__FINISHED_WRF__"`;\
+	  if [ "$$wrfstatus" = "" ];then\
+	    echo "Progress: WRF RUNNING JOB ALREADY";\
+	  else\
+	    cat /mnt/share500/logs/$(CUSER).wrf.log >> /mnt/share500/logs/$(CUSER).log;\
+	    nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_WRF__; make -s run-wrf-nest RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__;" > /mnt/share500/logs/$(CUSER).wrf.log 2>&1 &\
+	    echo $$! > $(CUSER)_curr.wrf.pid;\
+	  fi;\
+	else\
+	  nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_WRF__; make -s run-wrf-nest RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__;" > tee /mnt/share500/logs/$(CUSER).wrf.log 2>&1 &\
+	  echo $$! > $(CUSER)_curr.wrf.pid;\
+	fi; 
+	
 
 run-wps::
 	### Run WPS  ###
@@ -38,7 +53,7 @@ run-wps::
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	echo "Progress: Starting WPS Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
+	echo "Progress: Starting WPS Process at time=|`make -s get-utc`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
 	if make -f sc5_query.mk PROV_SEL_ \
 	  TYPE=wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) &> $(LOGS_DIR)cql_log; then\
 	  CRES=`make -f sc5_query.mk PROV_SEL_ \
@@ -113,7 +128,7 @@ run-wps::
 	  rm -rf $$tmpdirwps;\
 	fi;\
 	make $(MAKEOPTS) run-ssh-cp;\
-	echo "Progress: Ended WPS Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";
+	echo "Progress: Ended WPS Process at time=|`make -s get-utc`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";
 
 
 run-wrf::
@@ -122,7 +137,7 @@ run-wrf::
 	if [ "$(REG)" = "d02" ]; then d02=1; fi;\
 	if [ "$(REG)" = "d03" ]; then d03=1; fi;\
 	CURRUUID=`cat $(CUSER)_curr.UUID`;\
-	echo "Progress: Starting WRF Process at time=|`date`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
+	echo "Progress: Starting WRF Process at time=|`make -s get-utc`| with REG=|$(REG)| CUSER=|$(CUSER)| RDURATION=|$(RDURATION)| RSTARTDT=|$(RSTARTDT)| RUN_ID=|$$CURRUUID|";\
 	start=`date +%s`;\
 	make $(MAKEOPTS) -s run-wps REG=$(REG) CUSER=$(CUSER) RDURATION=$(RDURATION) RSTARTDT=$(RSTARTDT) | tee $(LOGS_DIR)$$CURRUUID"_log" &&\
 	end=`date +%s`;\
@@ -413,3 +428,14 @@ run-wps-deprec::
 	  rm -rf $$tmpdirwps;\
 	fi;\
 	make $(MAKEOPTS) run-ssh-cp;
+
+get-utc::
+	python -c "from datetime import datetime; print datetime.utcnow()";
+
+
+monitor-log::
+	if [ -f $(LOGS_DIR)/$(CUSER).$(PROC).log ];then\
+	  tail -f $(LOGS_DIR)/$(CUSER).$(PROC).log;\
+	else\
+	  echo "Nothing to Monitor";\
+	fi;

@@ -121,3 +121,34 @@ export-file::
 	echo "Progress: Export File "$(NETCDFOUT)" OK!";
 
 
+ingest-file-background::
+	if [ -f /mnt/share500/logs/$(CUSER).ing.log ];then\
+	  ingstatus=`cat /mnt/share500/logs/$(CUSER).ing.log | grep "__FINISHED_ING__"`;\
+	  if [ "$$ingstatus" = "" ];then\
+	    echo "Progress: INGESTION RUNNING JOB EXISTS";\
+	  else\
+	    cat /mnt/share500/logs/$(CUSER).ing.log >> /mnt/share500/logs/$(CUSER).log;\
+	    nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/;echo __STARTED_ING__; make -s ingest-file-withprov CUSER=$(CUSER) NETCDFFILE=$(NETCDFFILE); echo __FINISHED_ING__;" > /mnt/share500/logs/$(CUSER).ing.log 2>&1 &\
+	    echo $$! > $(CUSER)_curr.ing.pid ;\
+	  fi;\
+	else\
+	  nohup "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_ING__; make -s ingest-file-withprov CUSER=$(CUSER) NETCDFFILE=$(NETCDFFILE); echo __FINISHED_ING__;" > /mnt/share500/logs/$(CUSER).ing.log 2>&1 & \
+	  echo $$! > $(CUSER)_curr.ing.pid;\
+	fi; 
+
+export-file-background::
+	if [ -f /mnt/share500/logs/$(CUSER).exp.log ];then\
+	  expstatus=`cat /mnt/share500/logs/$(CUSER).exp.log | grep "__FINISHED_EXP__"`;\
+	  if [ "$$expstatus" = "" ];then\
+	    echo "Progress: EXPORT RUNNING JOB EXISTS";\
+	  else\
+	    cat /mnt/share500/logs/$(CUSER).exp.log >> /mnt/share500/logs/$(CUSER).log;\
+	    nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_EXP__; make -s export-file  NETCDFKEY=$(NETCDFKEY)  NETCDFOUT=$(NETCDFOUT) NETCDFVAR=$(NETCDFVAR); echo __FINISHED_EXP__;" > /mnt/share500/logs/$(CUSER).exp.log 2>&1 &\
+	    echo $$! > $(CUSER)_curr.ing.pid;\
+	  fi;\
+	else\
+	  nohup sh -c "cd $(DOCKERCOMPOSE_BUILD_DIR)/bde-climate-1/; echo __STARTED_EXP__; make -s export-file  NETCDFKEY=$(NETCDFKEY)  NETCDFOUT=$(NETCDFOUT) NETCDFVAR=$(NETCDFVAR); echo __FINISHED_EXP__;" > /mnt/share500/logs/$(CUSER).exp.log 2>&1 &\
+	  echo $$! > $(CUSER)_curr.exp.pid;\
+	fi; 
+
+
