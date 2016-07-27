@@ -25,7 +25,7 @@ CLUSTER_USER = 'stathis'
 CLUSTER_IP = 'athina'
 CLUSTER_DATA_DIR = '/home/stathis/Downloads'
 CLUSTER_BUILD_DIR = '/home/stathis/Develop'
-
+PROC='exp'
 
 def get_stamp(msg=''):
     return msg + ' ' + str(datetime.now())
@@ -65,8 +65,7 @@ def updateIngestHTML(x):
 def ingest(filename):
     ''' make ingest-file NETCDFFILE=yourfilewithfullpath '''
     txarea.value += get_stamp('Starting ingest') + '\n'
-    s = execu(ingest_command(netcdffile=filename), pattern='Progress: ', fn=updateIngestHTML)
-    txarea.value += get_stamp('Finished ingest')
+    s = execu(ingest_command(netcdffile=filename), pattern=None, fn=updateIngestHTML)
 
 def execu(command, pattern=None, fn=sys.stdout.write):
     """
@@ -91,7 +90,7 @@ def ingest_command(clusteruser=CLUSTER_USER,
                    netcdffile='somefile'):
     curr_user = os.environ['USER']
     sti0 = 'scp ./__FILE__ __UNAME__@__HOST__:__BUILD_DIR__/bde-climate-1'
-    sti1 = 'ssh __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s ingest-file-withprov NETCDFFILE=__FILE__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
+    sti1 = 'ssh __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s ingest-file-background NETCDFFILE=__FILE__ CUSER=__CUSER__"'
     sti = sti0 + ' && ' + sti1
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
@@ -118,6 +117,22 @@ def prov_command(clusteruser=CLUSTER_USER,
     sti = sti.replace('__CUSER__', curr_user)
     return sti   
 
+def monitor_command(clusteruser=CLUSTER_USER,
+                   clusterip=CLUSTER_IP,
+                   clim1_dd=CLUSTER_DATA_DIR,
+                   clim1_bd=CLUSTER_BUILD_DIR,
+                   proc=PROC):
+    # make monitor log
+    curr_user = os.environ['USER']
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s monitor-log CUSER=__CUSER__ PROC=__PROC__"'
+    sti = sti.replace('__UNAME__', clusteruser)
+    sti = sti.replace( '__HOST__', clusterip)
+    sti = sti.replace('__DATA_DIR__', clim1_dd)
+    sti = sti.replace('__BUILD_DIR__', clim1_bd)
+    sti = sti.replace('__PROC__', proc)
+    sti = sti.replace('__CUSER__', curr_user)
+    return sti
+
 def export_command(clusteruser=CLUSTER_USER,
                    clusterip=CLUSTER_IP,
                    clim1_dd=CLUSTER_DATA_DIR,
@@ -126,7 +141,7 @@ def export_command(clusteruser=CLUSTER_USER,
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
     sti0 = 'echo "Retrieving __FILE__..." && scp __UNAME__@__HOST__:__BUILD_DIR__/bde-climate-1/__FILE__ .'
-    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file NETCDFKEY=__KEY__ NETCDFOUT=__FILE__ | tee -a /mnt/share500/logs/__CUSER__.log"'
+    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file-background CUSER=__CUSER__ NETCDFKEY=__KEY__ NETCDFOUT=__FILE__"'
     sti = sti1 + ' && ' + sti0
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
@@ -185,13 +200,30 @@ def get_cassandra_data_keys():
 def update_export_HTML(x):
     tx_export.value += x.strip() + '<br/>'
 
+def update_wrf_HTML(x):
+    tx_wrf.value += x.strip() + '<br/>'
+
+
 def export_clicked(b):
     tx_export.value += get_stamp('Starting export') + '<br/>'
-    #execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML, pattern='Progress: ')
-    d = multiprocessing.Process(name='export_netcdf', target=execu, args=(export_command(netcdfkey=dd_export.value), 'Progress: ', update_export_HTML,))
-    d.daemon = True
-    d.start()
-    tx_export.value += get_stamp('Finished export')
+    execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML, pattern=None)
+    if lt_export.value:
+        monitor_export()
+    else:
+        IPython.display.clear_output()
+
+
+
+def monitor_export():
+    execu(monitor_command(proc='exp'), fn=update_export_HTML, pattern=None)
+
+def monitor_ingest():
+    execu(monitor_command(proc='ing'), fn=updateIngestHTML, pattern=None)
+
+def monitor_wrf():
+    execu(monitor_command(proc='wrf'), fn=update_wrf_HTML, pattern=None)
+
+
 
 from netCDF4 import Dataset
 import numpy as np
@@ -302,6 +334,7 @@ def display_export_form():
     # Export button
     global dd_export
     global bt_export
+    global lt_export
     global tx_export
     global datakeys
 
@@ -315,13 +348,15 @@ def display_export_form():
         description='Available keys:',
     )
     bt_export = widgets.Button(description="Export")
+    lt_export = widgets.Checkbox(description="Monitor Export", value=False)
     #tx_export = widgets.Textarea(height=3)
     tx_export = widgets.HTML()
-    container = widgets.HBox(children=[dd_export, l, bt_export])
+    container = widgets.HBox(children=[dd_export, l, bt_export, lt_export])
 
     bt_export.on_click(export_clicked)
     display(container)
     display(tx_export)
+
 
 import traceback
 def update_prov(l):
@@ -382,6 +417,7 @@ def wrf_clicked(b):
     global dd_reg_wrf
     global dd_st_wrf
     global dd_dur_wrf
+    global mx_wrf
 
     reg = None
     stdate = None
@@ -394,18 +430,20 @@ def wrf_clicked(b):
         reg = 'd01d02'
     else:
         pass
+    if mx_wrf.value:
+        monitor_wrf()
+    else:
+        IPython.display.clear_output()
+
 
     print get_stamp('Starting WRF')
     stdate = dd_st_wrf.value.replace('-', '')
     dur = dd_dur_wrf.value
     if reg == 'd01d02':
         #print 'run nesting'
-        print wrf_command_nest(region=reg, startdate=stdate, duration=dur)
-        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur), pattern='Progress: ')
+        execu(wrf_command_nest(region=reg, startdate=stdate, duration=dur), pattern=None)
     else:
-        print wrf_command(region=reg, startdate=stdate, duration=dur)
-        execu(wrf_command(region=reg, startdate=stdate, duration=dur), pattern='Progress: ')
-    print get_stamp('Finishing WRF')
+        execu(wrf_command(region=reg, startdate=stdate, duration=dur), pattern=None)
 
 def analytics_command(clusteruser=CLUSTER_USER,
                       clusterip=CLUSTER_IP,
@@ -486,6 +524,7 @@ def display_wrf_form():
     global dd_dur_wrf
     global bt_wrf
     global tx_wrf
+    global mx_wrf
 
     l = widgets.HTML(
         value = '<span style="color:#fff;">................................................... </span> '
@@ -507,12 +546,14 @@ def display_wrf_form():
         desciption='Duration:',
     )
     bt_wrf = widgets.Button(description="Run WRF")
+    mx_wrf = widgets.Checkbox(description="Run WRF Monitor", value=False)
     tx_wrf = widgets.HTML()
     container = widgets.HBox(children=[dd_reg_wrf, dd_st_wrf, dd_dur_wrf])
 
     bt_wrf.on_click(wrf_clicked)
     display(container)
     display(bt_wrf)
+    display(mx_wrf)
     display(tx_wrf)
     
     
@@ -543,6 +584,7 @@ def display_prov_form():
 def display_ingest_form():
     global w
     global b
+    global m
     global txarea
 
     netcdf_files()
@@ -555,8 +597,9 @@ def display_ingest_form():
         description='Choose file:',
     )
     b = widgets.Button(description='Ingest')
+    m = widgets.Checkbox(description='Ingest Monitor', value=False)
     txarea = widgets.HTML()
-    container = widgets.HBox(children=[w, l, b])
+    container = widgets.HBox(children=[w, l, b, m])
 
     b.on_click(ingest_clicked)
     display(container)
@@ -566,7 +609,12 @@ def ingest_clicked(b):
     global txarea
     txarea.value = ''
     ingest(filename=w.value)
-    
+    if m.value:
+        monitor_ingest()
+    else:
+        IPython.display.clear_output()
+
+
 def export(filename):
     ''' make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile '''
     ''' MAY support more selective use-case '''
@@ -581,7 +629,7 @@ def wrf_command(clusteruser=CLUSTER_USER,
                 duration = 6):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf-background RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
@@ -601,7 +649,7 @@ def wrf_command_nest(clusteruser=CLUSTER_USER,
                 duration = 6):
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
-    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf-nest RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__ | tee -a /mnt/share500/logs/__CUSER__.log"'
+    sti = 'ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s run-wrf-nest-background RSTARTDT=__STARTDATE__ RDURATION=__RDURATION__ REG=__REGION__ CUSER=__CUSER__"'
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
     sti = sti.replace('__DATA_DIR__', clim1_dd)
