@@ -13,6 +13,22 @@ help::
 	echo "help goes here";
 
 
+run-wrf-background::
+	if [ -f /mnt/share500/logs/$(CUSER).wrf.log ];then\
+	  wrfstatus=`cat /mnt/share500/logs/$(CUSER).wrf.log | grep "__FINISHED_WRF__"`;\
+	  if [ "$$wrfstatus" = "" ];then\
+	    echo "WRF RUNNING JOB ALREADY";\
+	  else\
+	    cat /mnt/share500/logs/$(CUSER).wrf.log >> /mnt/share500/logs/$(CUSER).log;\
+	    nohup sh -c "echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__; | tee /mnt/share500/logs/$(CUSER).wrf.log" &;\
+	    echo $! > $(CUSER)_curr.wrf.pid;\
+	  fi;\
+	else\
+	  nohup sh -c "echo __STARTED_WRF__; make -s run-wrf RSTARTDT=$(RSTARTDT) RDURATION=$(RDURATION) REG=$(REG) CUSER=$(CUSER); echo __FINISHED_WRF__; | tee /mnt/share500/logs/$(CUSER).wrf.log" &;\
+	  echo $! > $(CUSER)_curr.wrf.pid;\
+	fi; 
+	
+
 
 run-wps::
 	### Run WPS  ###
