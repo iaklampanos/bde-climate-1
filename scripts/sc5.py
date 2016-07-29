@@ -141,7 +141,7 @@ def export_command(clusteruser=CLUSTER_USER,
     # make export-file NETCDFKEY=yourkeysearch NETCDFOUT=nameofnetcdfoutfile
     curr_user = os.environ['USER']
     sti0 = 'echo "Retrieving __FILE__..." && scp __UNAME__@__HOST__:__BUILD_DIR__/bde-climate-1/__FILE__ .'
-    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file-background CUSER=__CUSER__ NETCDFKEY=__KEY__ NETCDFOUT=__FILE__"'
+    sti1 = 'echo "Exporting __FILE__..." && ssh  __UNAME__@__HOST__ -T "export CLIMATE1_CASSANDRA_DATA_DIR=__DATA_DIR__ && export CLIMATE1_BUILD_DIR=__BUILD_DIR__ && cd __BUILD_DIR__/bde-climate-1 && make -s export-file CUSER=__CUSER__ NETCDFKEY=__KEY__ NETCDFOUT=__FILE__ | tee -a /mnt/share500/logs/__CUSER__.exp.log"'
     sti = sti1 + ' && ' + sti0
     sti = sti.replace('__UNAME__', clusteruser)
     sti = sti.replace( '__HOST__', clusterip)
@@ -206,12 +206,23 @@ def update_wrf_HTML(x):
 
 def export_clicked(b):
     tx_export.value += get_stamp('Starting export') + '<br/>'
-    execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML, pattern=None)
-    if lt_export.value:
-        monitor_export()
-    else:
-        IPython.display.clear_output()
+    dexp = multiprocessing.Process(name='export', target=execu, args=(export_command(netcdfkey=dd_export.value), None, update_export_HTML,))
+    dexp.daemon = True
+    dexp.start()
+    #execu(export_command(netcdfkey=dd_export.value), fn=update_export_HTML, pattern=None)
 
+def monitor_export_clicked(b):
+    global m_exp
+    global mexp
+    if not m_exp:
+        tx_export.value += get_stamp('Monitoring export') + '<br/>'
+        mexp = multiprocessing.Process(name='monitor_export', target=monitor_export)
+    	mexp.daemon = True
+    	mexp.start()
+	m_exp = True
+    else:
+        if mexp:
+	    mexp.terminate()
 
 
 def monitor_export():
@@ -337,6 +348,9 @@ def display_export_form():
     global lt_export
     global tx_export
     global datakeys
+    global m_exp
+    global mexp
+    m_exp = False
 
     datakeys = get_cassandra_data_keys()
 
@@ -348,12 +362,13 @@ def display_export_form():
         description='Available keys:',
     )
     bt_export = widgets.Button(description="Export")
-    lt_export = widgets.Checkbox(description="Monitor Export", value=False)
+    lt_export = widgets.Button(description="Monitor Export")
     #tx_export = widgets.Textarea(height=3)
     tx_export = widgets.HTML()
     container = widgets.HBox(children=[dd_export, l, bt_export, lt_export])
 
     bt_export.on_click(export_clicked)
+    lt_export.on_click(monitor_export_clicked)
     display(container)
     display(tx_export)
 
@@ -431,7 +446,8 @@ def wrf_clicked(b):
     else:
         pass
     if mx_wrf.value:
-        monitor_wrf()
+	print "on development"
+        #monitor_wrf()
     else:
         IPython.display.clear_output()
 
@@ -610,7 +626,8 @@ def ingest_clicked(b):
     txarea.value = ''
     ingest(filename=w.value)
     if m.value:
-        monitor_ingest()
+	print "on development"
+        #monitor_ingest()
     else:
         IPython.display.clear_output()
 
