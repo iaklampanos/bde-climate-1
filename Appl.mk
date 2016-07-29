@@ -10,13 +10,19 @@ hive-query-daily-indx::
 	t2res=`docker  exec -i hive beeline --silent -u jdbc:hive2://localhost:10000 -e "select max(t2), min(t2) from wrfout_$(REG)_2016_07_$(DAY)_00_00_00_t2"`;echo $$t2res;
 
 
+hive-query-max-diff-t2-fill::
+	docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "create table if not exists wrfout_d02_p1_maxt2 as select 0  as time, south_north, west_east, max(t2) as maxt2 from wrfout_d02_2016_07_01_00_00_00_t2 group by south_north, west_east; insert overwrite table wrfout_d02_p1_maxt2 select 0  as time, south_north, west_east, max(t2) as maxt2 from wrfout_d02_2016_07_01_00_00_00_t2 group by south_north, west_east; create table if not exists wrfout_d02_p2_maxt2 as select 0  as time, south_north, west_east, max(t2) as maxt2 from wrfout_d02_2016_07_05_00_00_00_t2 group by south_north, west_east; insert overwrite table wrfout_d02_p2_maxt2 select 0  as time, south_north, west_east, max(t2) as maxt2 from wrfout_d02_2016_07_05_00_00_00_t2 group by south_north, west_east; create table if not exists wrfout_d02_p1_maxt2_n like wrfout_d02_2016_07_01_00_00_00_t2; insert overwrite table wrfout_d02_p1_maxt2_n select wrfout_d02_2016_07_01_00_00_00_t2.row_no, wrfout_d02_p1_maxt2.* from wrfout_d02_p1_maxt2 join wrfout_d02_2016_07_01_00_00_00_t2 on (wrfout_d02_p1_maxt2.time = wrfout_d02_2016_07_01_00_00_00_t2.time  and wrfout_d02_p1_maxt2.south_north = wrfout_d02_2016_07_01_00_00_00_t2.south_north and wrfout_d02_p1_maxt2.west_east = wrfout_d02_2016_07_01_00_00_00_t2.west_east); create table if not exists wrfout_d02_p2_maxt2_n like wrfout_d02_2016_07_01_00_00_00_t2; insert overwrite table wrfout_d02_p2_maxt2_n select wrfout_d02_2016_07_05_00_00_00_t2.row_no, wrfout_d02_p2_maxt2.* from wrfout_d02_p2_maxt2 join wrfout_d02_2016_07_05_00_00_00_t2 on (wrfout_d02_p2_maxt2.time = wrfout_d02_2016_07_05_00_00_00_t2.time  and wrfout_d02_p2_maxt2.south_north = wrfout_d02_2016_07_05_00_00_00_t2.south_north and wrfout_d02_p2_maxt2.west_east = wrfout_d02_2016_07_05_00_00_00_t2.west_east)"
+
+hive-query-max-diff-t2:: hive-query-max-diff-t2-fill
+	docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "create table if not exists wrfout_d02_maxt2_diff like wrfout_d02_2016_07_01_00_00_00_t2; insert overwrite table wrfout_d02_maxt2_diff select (wrfout_d02_p2_maxt2_n.t2 - wrfout_d02_p1_maxt2_n.t2) as t2 from wrfout_d02_p2_maxt2_n, wrfout_d02_p1_maxt2_n where wrfout_d02_p1_maxt2_n.row_no = wrfout_d02_p2_maxt2_n.row_no"
+
 
 
 hive-hangout-query-max::
-	t2res=`docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "select max(wrfout_d02_2016_07_07_00_00_00_t2.t2 - wrfout_d02_2016_07_06_00_00_00_t2.t2) as maxt2 from wrfout_d02_2016_07_07_00_00_00_t2, wrfout_d02_2016_07_06_00_00_00_t2 where wrfout_d02_2016_07_06_00_00_00_t2.row_no = wrfout_d02_2016_07_07_00_00_00_t2.row_no"`;echo $$t2res | grep maxt2;
+	docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "select wrfout_d02_2016_07_01_00_00_00_t2.t2 - wrfout_d02_2016_07_05_00_00_00_t2.t2 as maxt2 from wrfout_d02_2016_07_01_00_00_00_t2, wrfout_d02_2016_07_05_00_00_00_t2 where wrfout_d02_2016_07_05_00_00_00_t2.row_no = wrfout_d02_2016_07_01_00_00_00_t2.row_no";
 
 hive-hangout-query-min::
-	t2res=`docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "select min(wrfout_d02_2016_07_07_00_00_00_t2.t2 - wrfout_d02_2016_07_06_00_00_00_t2.t2) as mint2 from wrfout_d02_2016_07_07_00_00_00_t2, wrfout_d02_2016_07_06_00_00_00_t2 where wrfout_d02_2016_07_06_00_00_00_t2.row_no = wrfout_d02_2016_07_07_00_00_00_t2.row_no"`;echo $$t2res | grep mint2;
+	t2res=`docker  exec -i hive beeline -u jdbc:hive2://localhost:10000 -e "select min(wrfout_d02_2016_07_01_00_00_00_t2.t2 - wrfout_d02_2016_07_05_00_00_00_t2.t2) as mint2 from wrfout_d02_2016_07_01_00_00_00_t2, wrfout_d02_2016_07_05_00_00_00_t2 where wrfout_d02_2016_07_05_00_00_00_t2.row_no = wrfout_d02_2016_07_01_00_00_00_t2.row_no"`;echo $$t2res | grep mint2;
 
 
 get-prov-tree::
